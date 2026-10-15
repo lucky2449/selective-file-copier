@@ -85,9 +85,6 @@ function refreshSaveOptions() {
   $("save-hint").textContent = state.dest
     ? "선택 파일을 지정한 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
     : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
-  if (canChooseDestination && state.files.length && !state.source)
-    $("save-hint").textContent +=
-      " 직접 폴더 복사를 사용하려면 ‘폴더 직접 복사 모드로 열기’로 원본을 다시 선택하세요.";
 }
 function updateSummary() {
   refreshSaveOptions();
@@ -365,9 +362,8 @@ async function downloadFiles(files) {
   let requested = 0,
     failed = 0;
   const occupied = new Set();
-  $("copy-output").textContent =
-    "일반 다운로드 · 저장 위치와 완료 여부는 브라우저 다운로드 목록에서 확인하세요. 여러 파일 다운로드 요청은 허용해 주세요.";
-  $("copy-output").hidden = false;
+  $("copy-output").textContent = "";
+  $("copy-output").hidden = true;
   progress(0, "다운로드 요청 준비 중...");
   try {
     for (let i = 0; i < files.length; i++) {
