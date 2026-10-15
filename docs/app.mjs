@@ -1,3 +1,5 @@
+import { createAnalytics } from "./analytics.mjs";
+import { measurementId } from "./analytics-config.mjs";
 import { openCopyWriter } from "./copy-safety.mjs";
 import {
   assertDistinctDirectories,
@@ -17,6 +19,9 @@ import {
 } from "./core.mjs";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
+const analytics = createAnalytics({ measurementId, window, document });
+if (analytics.configured) $("analytics-notice").hidden = false;
+analytics.start();
 const canChooseDestination = typeof window.showDirectoryPicker === "function";
 const defaultDestinationLabel = canChooseDestination
   ? "저장 폴더 선택 (선택 사항)"
@@ -284,6 +289,7 @@ $("search").addEventListener("click", async () => {
   }
   setBusy(true);
   state.cancelled = false;
+  analytics.track("file_search");
   progress(0, "파일 검색 중...");
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -382,6 +388,7 @@ async function downloadFiles(files) {
         const name = uniqueName(entry.name, occupied);
         download(entry.file, name);
         requested++;
+        analytics.track("download_request");
         log(`다운로드 요청: ${entry.name} → ${name}`);
       } catch (error) {
         failed++;
@@ -462,6 +469,7 @@ async function exportZip(usePicker = true) {
     });
     if (target) await sink.close();
     else download(new Blob(parts, { type: "application/zip" }), "파일모아.zip");
+    analytics.track("zip_created");
     progress(100, `ZIP 저장 완료 · ${entries.length}개 파일`);
     log(
       `ZIP ${target ? "저장" : "다운로드 요청"} 완료: ${entries.length}개 파일`,
@@ -557,6 +565,7 @@ async function copyFiles() {
         if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
         await writer.close();
         success++;
+        analytics.track("copy_success");
         log(`복사됨: ${entry.name} → ${newName}`);
       } catch (error) {
         if (writer) await writer.abort().catch(() => {});
@@ -564,6 +573,7 @@ async function copyFiles() {
           log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
         if (error.name === "AbortError") break;
         failed++;
+        analytics.track("copy_failure");
         log(`복사 실패: ${entry.name} (${error.message})`);
       }
       progress(
