@@ -1,6 +1,5 @@
 import {
   assertDistinctDirectories,
-  createCopyDirectory,
   selectNativeSource,
 } from "./directory-access.mjs";
 import { bindSourcePicker } from "./source-picker.mjs";
@@ -65,7 +64,6 @@ function setBusy(value) {
     "select-all",
   ])
     $(id).disabled = value;
-  $("source").disabled = value || !canChooseDestination;
   $("cancel").hidden = !value;
   for (const input of $("rows").querySelectorAll("input,select"))
     input.disabled = value || input.dataset.unavailable === "true";
@@ -84,15 +82,12 @@ function refreshSaveOptions() {
   $("dest-label").textContent = state.dest?.name ?? defaultDestinationLabel;
   $("destination-reset").hidden = !state.dest;
   $("destination-reset").disabled = state.busy;
-  $("save-hint").textContent = !canChooseDestination
-    ? "폴더 직접 복사를 지원하지 않는 환경입니다. 데스크톱 Chrome·Edge의 새 탭에서 여세요. ZIP은 별도 대체 기능입니다."
-    : state.source
-      ? state.dest
-        ? "선택 파일을 저장 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
-        : "미지정 시 복사 버튼을 누르면 다운로드 위치에서 시작하는 확인창이 열립니다. 확인한 위치에 새 폴더를 자동 생성합니다."
-      : state.files.length
-        ? "파일 선택창으로 읽은 원본은 ZIP 다운로드만 가능합니다. 직접 복사하려면 위의 원본 폴더 선택 버튼으로 다시 여세요."
-        : "저장 위치 지정은 선택 사항입니다. 미지정 시 복사할 때 위치를 확인하고 새 폴더를 자동 생성합니다.";
+  $("save-hint").textContent = state.dest
+    ? "선택 파일을 지정한 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
+    : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
+  if (canChooseDestination && state.files.length && !state.source)
+    $("save-hint").textContent +=
+      " 직접 폴더 복사는 위의 원본 폴더 선택 버튼으로 다시 열어야 합니다.";
 }
 function updateSummary() {
   refreshSaveOptions();
@@ -102,9 +97,9 @@ function updateSummary() {
   $("stat-found").textContent = resolved;
   $("stat-attention").textContent = state.rows.length - resolved;
   $("selected-count").textContent = `선택한 파일 ${selected.length}개`;
-  $("copy").disabled = state.busy || !selected.length || !state.source;
+  $("copy").disabled = state.busy || !selected.length;
   $("zip").disabled = state.busy || !selected.length;
-  $("copy").textContent = "선택 파일 복사";
+  $("copy").textContent = state.dest ? "선택 파일 복사" : "선택 파일 다운로드";
   const available = state.rows.filter((row) => row.chosen);
   $("select-all").checked =
     available.length > 0 && available.every((row) => row.selected);
@@ -198,48 +193,42 @@ function acceptSource(files, name, source = null) {
   log(`원본 폴더: ${name} / ${files.length.toLocaleString()}개 파일`);
   if (!files.length) toast("선택한 폴더에 파일이 없습니다.");
 }
-// Keep ZIP fallback explicit. Never retry an input after a native picker failure:
+// Keep the standard input available for normal downloads. Never retry an input after a native picker failure:
 // a second picker would no longer have the original user activation.
 bindSourcePicker({
-  buttons: [$("source-alternative")],
+  buttons: canChooseDestination
+    ? [$("source-alternative")]
+    : [$("source"), $("source-alternative")],
   input: $("folder-input"),
   onFiles: (files, name) => acceptSource(files, name),
   onError: report,
 });
-$("source").disabled = !canChooseDestination;
-if (!canChooseDestination) {
-  $("source-detail").textContent =
-    "직접 복사는 데스크톱 Chrome·Edge의 새 탭에서 이용하세요";
-}
-$("source").addEventListener("click", async () => {
-  if (!canChooseDestination) {
-    toast("폴더 직접 복사를 지원하는 브라우저에서 사이트를 여세요.");
-    return;
-  }
-  try {
-    const selection = await selectNativeSource(
-      (options) => window.showDirectoryPicker(options),
-      {
-        onScanning: () => {
-          state.cancelled = false;
-          setBusy(true);
-          progress(0, "원본 폴더 읽는 중...");
+if (canChooseDestination)
+  $("source").addEventListener("click", async () => {
+    try {
+      const selection = await selectNativeSource(
+        (options) => window.showDirectoryPicker(options),
+        {
+          onScanning: () => {
+            state.cancelled = false;
+            setBusy(true);
+            progress(0, "원본 폴더 읽는 중...");
+          },
+          cancelled: () => state.cancelled,
         },
-        cancelled: () => state.cancelled,
-      },
-    );
-    acceptSource(selection.files, selection.name, selection.handle);
-  } catch (error) {
-    if (error.name === "SecurityError" || error.name === "NotAllowedError") {
-      toast(
-        "폴더 접근이 차단되었습니다. 데스크톱 Chrome·Edge의 새 탭에서 사이트를 열고 다시 선택하세요. ZIP 대체는 아래 파일 선택창 버튼을 사용하세요.",
       );
-    } else report(error);
-  } finally {
-    setBusy(false);
-    $("progress-wrap").hidden = true;
-  }
-});
+      acceptSource(selection.files, selection.name, selection.handle);
+    } catch (error) {
+      if (error.name === "SecurityError" || error.name === "NotAllowedError") {
+        toast(
+          "폴더 접근이 차단되었습니다. 아래 ‘파일 선택창으로 폴더 열기’로 원본을 선택하면 일반 다운로드로 저장할 수 있습니다.",
+        );
+      } else report(error);
+    } finally {
+      setBusy(false);
+      $("progress-wrap").hidden = true;
+    }
+  });
 $("reference").addEventListener("click", () => $("reference-input").click());
 $("reference-input").addEventListener("change", (event) => {
   if (event.target.files.length) {
@@ -332,7 +321,7 @@ $("select-all").addEventListener("change", () => {
 });
 $("destination").addEventListener("click", async () => {
   if (!window.showDirectoryPicker) {
-    toast("이 브라우저에서는 ZIP 다운로드로 저장하세요.");
+    toast("저장 폴더를 지정하지 않고 일반 다운로드를 사용하세요.");
     return;
   }
   try {
@@ -343,9 +332,9 @@ $("destination").addEventListener("click", async () => {
     updateSummary();
     log(`저장 폴더: ${dest.name}`);
   } catch (error) {
-    if (error.name === "SecurityError") {
+    if (["SecurityError", "NotAllowedError"].includes(error.name)) {
       toast(
-        "폴더 저장은 사이트를 새 탭에서 열어 사용하거나 ZIP으로 내려받으세요.",
+        "이 폴더에 접근할 수 없습니다. 다른 폴더를 선택하거나 ‘일반 다운로드 사용’을 누르세요.",
       );
     } else report(error);
   }
@@ -357,12 +346,58 @@ $("destination-reset").addEventListener("click", () => {
 function download(blob, name) {
   const url = URL.createObjectURL(blob),
     a = node("a");
-  a.href = url;
-  a.download = name;
-  document.body.append(a);
-  a.click();
-  a.remove();
+  try {
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  } finally {
+    a.remove();
+  }
+  // Keep the original Blob available while the browser starts the download.
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function downloadFiles(files) {
+  state.cancelled = false;
+  setBusy(true);
+  let requested = 0,
+    failed = 0;
+  const occupied = new Set();
+  $("copy-output").textContent =
+    "일반 다운로드 · 저장 위치와 완료 여부는 브라우저 다운로드 목록에서 확인하세요. 여러 파일 다운로드 요청은 허용해 주세요.";
+  $("copy-output").hidden = false;
+  progress(0, "다운로드 요청 준비 중...");
+  try {
+    for (let i = 0; i < files.length; i++) {
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, 250));
+      if (state.cancelled) break;
+      const entry = files[i];
+      try {
+        const name = uniqueName(entry.name, occupied);
+        download(entry.file, name);
+        requested++;
+        log(`다운로드 요청: ${entry.name} → ${name}`);
+      } catch (error) {
+        failed++;
+        log(`다운로드 요청 실패: ${entry.name} (${error.message})`);
+      }
+      progress(
+        ((i + 1) / files.length) * 100,
+        `다운로드 요청 중 · ${i + 1} / ${files.length}개`,
+      );
+    }
+    const summary = `${state.cancelled ? "다운로드 요청 취소" : "다운로드 요청 처리"} · 요청 ${requested}개 / 요청 실패 ${failed}개 / 미요청 ${files.length - requested - failed}개`;
+    progress(((requested + failed) / files.length) * 100, summary);
+    log(summary);
+    toast(
+      `${summary}. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.`,
+    );
+  } finally {
+    setBusy(false);
+  }
 }
 async function exportZip(usePicker = true) {
   const files = selectedFiles(state.rows);
@@ -441,31 +476,20 @@ async function exportZip(usePicker = true) {
 }
 async function copyFiles() {
   if (state.busy) return;
-  if (!state.source) {
-    toast("직접 복사하려면 원본 폴더를 먼저 선택하세요.");
-    return;
-  }
   const files = selectedFiles(state.rows);
   if (!files.length) return;
+  if (!state.dest) {
+    await downloadFiles(files);
+    return;
+  }
   state.cancelled = false;
   setBusy(true);
   progress(0, "저장 폴더 확인 중...");
   let success = 0,
     failed = 0;
   try {
-    let dest = state.dest;
-    let outputLabel = dest?.name;
-    if (!dest) {
-      // Request access directly in the copy click, before any asynchronous work.
-      const parent = await window.showDirectoryPicker({
-        mode: "readwrite",
-        startIn: "downloads",
-      });
-      dest = await createCopyDirectory(state.source, parent, {
-        cancelled: () => state.cancelled,
-      });
-      outputLabel = `${parent.name}/${dest.name}`;
-    }
+    const dest = state.dest;
+    const outputLabel = dest.name;
     await assertDistinctDirectories(state.source, dest);
     if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
     $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;
@@ -583,9 +607,7 @@ $("reset").addEventListener("click", () => {
   $("items").value = "";
   $("copy-output").hidden = true;
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";
-  $("source-detail").textContent = canChooseDestination
-    ? "하위 폴더의 파일까지 함께 검색합니다"
-    : "직접 복사는 데스크톱 Chrome·Edge의 새 탭에서 이용하세요";
+  $("source-detail").textContent = "하위 폴더의 파일까지 함께 검색합니다";
   $("dest-label").textContent = defaultDestinationLabel;
   $("extension").replaceChildren(new Option("모든 파일", ""));
   $("log").textContent =

@@ -1,5 +1,3 @@
-import { normalize, uniqueName } from "./core.mjs";
-
 // Directory identity must be verified from handles, never folder names.
 export async function assertDistinctDirectories(source, destination) {
   if (
@@ -7,7 +5,7 @@ export async function assertDistinctDirectories(source, destination) {
     typeof source.isSameEntry !== "function"
   ) {
     throw new Error(
-      "동일 폴더 확인을 위해 ‘원본 폴더 선택’ 버튼으로 원본을 다시 선택하세요. ZIP 저장은 그대로 사용할 수 있습니다.",
+      "동일 폴더 확인을 위해 ‘원본 폴더 선택’ 버튼으로 원본을 다시 선택하세요. 일반 다운로드는 그대로 사용할 수 있습니다.",
     );
   }
   if (destination?.kind !== "directory") {
@@ -57,49 +55,10 @@ export async function selectNativeSource(
     typeof handle.isSameEntry !== "function"
   ) {
     throw new Error(
-      "이 브라우저에서는 폴더 동일 여부를 확인할 수 없습니다. 파일 선택창과 ZIP 저장을 사용하세요.",
+      "이 브라우저에서는 폴더 동일 여부를 확인할 수 없습니다. 파일 선택창과 일반 다운로드를 사용하세요.",
     );
   }
   onScanning();
   const files = await readSourceDirectory(handle, { cancelled });
   return { files, name: handle.name, handle };
-}
-
-// The browser must first grant access to the chosen parent. startIn: "downloads"
-// only suggests the picker location; it never grants access on its own.
-export async function createCopyDirectory(
-  source,
-  parent,
-  { now = new Date(), cancelled = () => false } = {},
-) {
-  const check = () => {
-    if (cancelled()) throw new DOMException("작업 취소", "AbortError");
-  };
-  check();
-  await assertDistinctDirectories(source, parent);
-  check();
-  const occupied = new Set();
-  for await (const entry of parent.values()) {
-    check();
-    occupied.add(normalize(entry.name));
-  }
-  const pad = (value) => String(value).padStart(2, "0");
-  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-  const time = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const base = `파일모아_${date}_${time}`;
-  // Probe again in case an entry appeared after the directory listing.
-  let name;
-  while (true) {
-    check();
-    name = uniqueName(base, occupied);
-    try {
-      await parent.getDirectoryHandle(name);
-    } catch (error) {
-      if (error.name === "NotFoundError") break;
-      if (error.name === "TypeMismatchError") continue;
-      throw error;
-    }
-  }
-  check();
-  return parent.getDirectoryHandle(name, { create: true });
 }
