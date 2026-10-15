@@ -87,7 +87,7 @@ function refreshSaveOptions() {
     : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
   if (canChooseDestination && state.files.length && !state.source)
     $("save-hint").textContent +=
-      " 직접 폴더 복사는 위의 원본 폴더 선택 버튼으로 다시 열어야 합니다.";
+      " 직접 폴더 복사를 사용하려면 ‘폴더 직접 복사 모드로 열기’로 원본을 다시 선택하세요.";
 }
 function updateSummary() {
   refreshSaveOptions();
@@ -196,15 +196,14 @@ function acceptSource(files, name, source = null) {
 // Keep the standard input available for normal downloads. Never retry an input after a native picker failure:
 // a second picker would no longer have the original user activation.
 bindSourcePicker({
-  buttons: canChooseDestination
-    ? [$("source-alternative")]
-    : [$("source"), $("source-alternative")],
+  buttons: [$("source")],
   input: $("folder-input"),
   onFiles: (files, name) => acceptSource(files, name),
   onError: report,
 });
+$("source-alternative").hidden = !canChooseDestination;
 if (canChooseDestination)
-  $("source").addEventListener("click", async () => {
+  $("source-alternative").addEventListener("click", async () => {
     try {
       const selection = await selectNativeSource(
         (options) => window.showDirectoryPicker(options),
@@ -221,7 +220,7 @@ if (canChooseDestination)
     } catch (error) {
       if (error.name === "SecurityError" || error.name === "NotAllowedError") {
         toast(
-          "폴더 접근이 차단되었습니다. 아래 ‘파일 선택창으로 폴더 열기’로 원본을 선택하면 일반 다운로드로 저장할 수 있습니다.",
+          "폴더 접근이 차단되었습니다. 위의 기본 ‘원본 폴더 선택’ 버튼으로 열면 일반 다운로드로 저장할 수 있습니다.",
         );
       } else report(error);
     } finally {

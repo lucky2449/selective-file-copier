@@ -135,6 +135,16 @@ test("default downloads original files with unique names, no directory or ZIP pi
   try {
     const first = inputFile("source/a/photo.jpg", "first"),
       second = inputFile("source/b/photo.jpg", "second");
+    let sourceClicks = 0;
+    el("folder-input").click = () => {
+      sourceClicks++;
+    };
+    await el("source").fire("click");
+    assert.equal(
+      sourceClicks,
+      1,
+      "Default source selection must not call the protected folder API even when available",
+    );
     await searchInput(
       el,
       [first, second],
@@ -228,19 +238,19 @@ test("native selection and explicit copying retain directory identity checks and
       inputClicks++;
     };
     pickerError = new DOMException("Blocked", "SecurityError");
-    await el("source").fire("click");
-    assert.match(el("toast").textContent, /파일 선택창으로 폴더 열기/);
+    await el("source-alternative").fire("click");
+    assert.match(el("toast").textContent, /기본 ‘원본 폴더 선택’/);
     assert.equal(
       inputClicks,
       0,
       "Fallback must require its own click activation",
     );
     pickerError = new DOMException("Cancelled", "AbortError");
-    await el("source").fire("click");
+    await el("source-alternative").fire("click");
     assert.equal(el("destination").disabled, true);
     pickerError = null;
     nextDirectory = source;
-    await el("source").fire("click");
+    await el("source-alternative").fire("click");
     el("items").value = "photo.jpg";
     await el("search").fire("click");
     const beforeDownload = pickerCalls;
@@ -284,7 +294,7 @@ test("native selection and explicit copying retain directory identity checks and
     );
     await el("destination-reset").fire("click");
     assert.equal(el("copy").textContent, "선택 파일 다운로드");
-    await el("source-alternative").fire("click");
+    await el("source").fire("click");
     assert.equal(inputClicks, 1);
     await searchInput(el, [inputFile("fallback/other.jpg")], "other.jpg");
     assert.equal(el("destination").disabled, true);
@@ -303,6 +313,7 @@ test("browsers without directory APIs use standard source selection and ordinary
       inputClicks++;
     };
     assert.equal(el("source").disabled, false);
+    assert.equal(el("source-alternative").hidden, true);
     assert.equal(el("destination").disabled, true);
     await el("source").fire("click");
     assert.equal(inputClicks, 1);
