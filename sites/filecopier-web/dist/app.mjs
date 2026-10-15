@@ -565,7 +565,6 @@ async function copyFiles() {
         if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
         await writer.close();
         success++;
-        analytics.track("copy_success");
         log(`복사됨: ${entry.name} → ${newName}`);
       } catch (error) {
         if (writer) await writer.abort().catch(() => {});
@@ -573,7 +572,6 @@ async function copyFiles() {
           log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
         if (error.name === "AbortError") break;
         failed++;
-        analytics.track("copy_failure");
         log(`복사 실패: ${entry.name} (${error.message})`);
       }
       progress(
@@ -601,6 +599,8 @@ async function copyFiles() {
       );
     } else report(error);
   } finally {
+    // One summary per copy operation; GA4 user metrics deduplicate visitors.
+    analytics.recordCopyResult(success, failed);
     setBusy(false);
   }
 }

@@ -77,11 +77,19 @@ test("only approved events and fixed metadata are queued, never file data or que
     "download_request",
     "zip_created",
   ]) {
-    h.analytics.track(event, {
-      file_name: "private-photo.jpg",
-      folder: "private-folder",
-      error: "secret",
-    });
+    h.analytics.track(
+      event,
+      event === "copy_success"
+        ? 1000
+        : event === "copy_failure"
+          ? 2
+          : undefined,
+      {
+        file_name: "private-photo.jpg",
+        folder: "private-folder",
+        error: "secret",
+      },
+    );
   }
   h.analytics.track("private-photo.jpg");
   h.analytics.track({ file: "private-photo.jpg" });
@@ -97,21 +105,23 @@ test("only approved events and fixed metadata are queued, never file data or que
       "zip_created",
     ],
   );
-  for (const [, , params] of events)
+  for (const [, name, params] of events)
     assert.deepEqual(params, {
       send_to: ID,
       page_location: "https://lucky2449.github.io/selective-file-copier/",
       page_title: "파일모아",
       page_referrer: "",
+      ...(name === "copy_success" ? { copied_file_count: 1000 } : {}),
+      ...(name === "copy_failure" ? { failed_file_count: 2 } : {}),
     });
   assert.doesNotMatch(JSON.stringify(h.commands()), /private|secret/);
 });
 
-test("repeat file events are counted individually, loader and queue failures never escape", () => {
+test("separate copy operations retain their own counts and analytics failures never escape", () => {
   const h = fixture();
   h.analytics.start();
-  h.analytics.track("copy_success");
-  h.analytics.track("copy_success");
+  h.analytics.recordCopyResult(1000, 0);
+  h.analytics.recordCopyResult(500, 0);
   assert.equal(
     h.commands().filter(([, name]) => name === "copy_success").length,
     2,
@@ -132,4 +142,29 @@ test("repeat file events are counted individually, loader and queue failures nev
     throw new Error("Blocked queue");
   };
   assert.doesNotThrow(() => broken.analytics.track("file_search"));
+});
+
+test("copy summaries accept only positive safe integer counts", () => {
+  const h = fixture();
+  h.analytics.start();
+  for (const count of [
+    0,
+    -1,
+    1.5,
+    NaN,
+    Infinity,
+    "1000",
+    {},
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    h.analytics.recordCopyResult(count, count);
+  }
+  assert.equal(h.commands().filter(([type]) => type === "event").length, 1);
+  h.analytics.recordCopyResult(1000, 3);
+  const summary = h
+    .commands()
+    .filter(([type, name]) => type === "event" && name.startsWith("copy_"));
+  assert.equal(summary.length, 2);
+  assert.equal(summary[0][2].copied_file_count, 1000);
+  assert.equal(summary[1][2].failed_file_count, 3);
 });

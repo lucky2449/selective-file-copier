@@ -1,4 +1,4 @@
-// Only fixed event names and fixed page metadata may reach GA4.
+// Only fixed event names, validated file counts and fixed page metadata may reach GA4.
 // File objects, names, paths, search text, errors and URL queries are never accepted.
 const PAGE = "https://lucky2449.github.io/selective-file-copier/";
 const EVENTS = new Set([
@@ -61,11 +61,26 @@ export function createAnalytics({ measurementId = "", window, document }) {
         active = false; // Analytics must never block searching or copying.
       }
     },
-    track(event) {
+    recordCopyResult(success, failed) {
+      this.track("copy_success", success);
+      this.track("copy_failure", failed);
+    },
+    track(event, count) {
       if (!active || !EVENTS.has(event)) return;
       if (event === "page_view" && visited) return;
+      const counts = {};
+      if (event === "copy_success" || event === "copy_failure") {
+        if (!Number.isSafeInteger(count) || count <= 0) return;
+        counts[
+          event === "copy_success" ? "copied_file_count" : "failed_file_count"
+        ] = count;
+      }
       try {
-        gtag("event", event, { send_to: measurementId, ...metadata });
+        gtag("event", event, {
+          send_to: measurementId,
+          ...metadata,
+          ...counts,
+        });
         if (event === "page_view") visited = true;
       } catch {
         // Do not log user data or interrupt a file operation for analytics errors.
