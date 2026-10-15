@@ -1,3 +1,7 @@
+import {
+  assertDistinctDirectories,
+  selectNativeSource,
+} from "./directory-access.mjs";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,
@@ -18,6 +22,7 @@ const defaultDestinationLabel = canChooseDestination
 const state = {
   files: [],
   rows: [],
+  source: null,
   dest: null,
   busy: false,
   cancelled: false,
@@ -50,6 +55,7 @@ function setBusy(value) {
   for (const id of [
     "source",
     "source-alternative",
+    "source-native",
     "reset",
     "reference",
     "load-text",
@@ -59,7 +65,6 @@ function setBusy(value) {
     "select-all",
   ])
     $(id).disabled = value;
-  $("destination").disabled = value || !canChooseDestination;
   $("cancel").hidden = !value;
   for (const input of $("rows").querySelectorAll("input,select"))
     input.disabled = value || input.dataset.unavailable === "true";
@@ -72,7 +77,18 @@ function invalidate() {
     `${parseItems($("items").value).length}개 항목`;
   $("progress-wrap").hidden = true;
 }
+function refreshSaveOptions() {
+  $("destination").disabled =
+    state.busy || !canChooseDestination || !state.source;
+  $("dest-label").textContent = state.dest?.name ?? defaultDestinationLabel;
+  $("save-hint").textContent = !canChooseDestination
+    ? "이 브라우저에서는 ZIP 다운로드로 저장합니다. 폴더 직접 복사는 지원 브라우저에서 사용할 수 있습니다."
+    : state.source
+      ? "원본과 다른 저장 폴더를 선택하세요. 선택하지 않으면 ZIP으로 저장합니다."
+      : "폴더 직접 복사는 ‘폴더 직접 복사용으로 열기’로 원본을 선택한 뒤 사용할 수 있습니다. 파일 선택창으로 읽은 원본은 ZIP으로 저장합니다.";
+}
 function updateSummary() {
+  refreshSaveOptions();
   const selected = selectedFiles(state.rows),
     resolved = state.rows.filter((row) => row.chosen).length;
   $("stat-total").textContent = state.rows.length;
@@ -158,8 +174,9 @@ function render() {
   $("rows").append(fragment);
   updateSummary();
 }
-function acceptSource(files, name) {
+function acceptSource(files, name, source = null) {
   state.files = files;
+  state.source = source;
   state.dest = null;
   $("dest-label").textContent = defaultDestinationLabel;
   $("source-name").textContent = name;
@@ -180,6 +197,28 @@ bindSourcePicker({
   input: $("folder-input"),
   onFiles: (files, name) => acceptSource(files, name),
   onError: report,
+});
+$("source-native").hidden = !canChooseDestination;
+$("source-native").addEventListener("click", async () => {
+  try {
+    const selection = await selectNativeSource(
+      (options) => window.showDirectoryPicker(options),
+      {
+        onScanning: () => {
+          state.cancelled = false;
+          setBusy(true);
+          progress(0, "원본 폴더 읽는 중...");
+        },
+        cancelled: () => state.cancelled,
+      },
+    );
+    acceptSource(selection.files, selection.name, selection.handle);
+  } catch (error) {
+    report(error);
+  } finally {
+    setBusy(false);
+    $("progress-wrap").hidden = true;
+  }
 });
 $("reference").addEventListener("click", () => $("reference-input").click());
 $("reference-input").addEventListener("change", (event) => {
@@ -278,6 +317,7 @@ $("destination").addEventListener("click", async () => {
   }
   try {
     const dest = await window.showDirectoryPicker({ mode: "readwrite" });
+    await assertDistinctDirectories(state.source, dest);
     state.dest = dest;
     $("dest-label").textContent = dest.name;
     updateSummary();
@@ -388,6 +428,7 @@ async function copyFiles() {
   let success = 0,
     failed = 0;
   try {
+    await assertDistinctDirectories(state.source, state.dest);
     const occupied = new Set();
     for await (const entry of state.dest.values()) {
       if (state.cancelled) break;
@@ -481,6 +522,7 @@ $("reset").addEventListener("click", () => {
   Object.assign(state, {
     files: [],
     rows: [],
+    source: null,
     dest: null,
     cancelled: false,
   });
@@ -493,11 +535,4 @@ $("reset").addEventListener("click", () => {
     "파일모아가 준비되었습니다. 원본 파일은 변경하지 않습니다.";
   invalidate();
 });
-if (!canChooseDestination) {
-  $("destination").disabled = true;
-  $("dest-label").textContent =
-    "현재 브라우저는 폴더 직접 저장을 지원하지 않습니다";
-  $("save-hint").textContent =
-    "아래 ZIP 다운로드를 누르면 선택한 파일을 한 번에 저장할 수 있습니다. Chrome 또는 Edge에서 새 탭으로 열면 폴더에 직접 복사할 수 있습니다.";
-}
 render();
