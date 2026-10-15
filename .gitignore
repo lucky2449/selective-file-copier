@@ -1,0 +1,28 @@
+# Local tools, private settings and repository backups
+/.local/
+/.idea/
+/.vscode/
+/.claude/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated desktop builds
+node_modules/
+**/build/
+/dist/
+**/installer_output/
+legacy/desktop/dist/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Deployment packages and temporary test files
+*.tar
+*.tar.gz
+sites/filecopier-web/tests/verified.zip
+sites/filecopier-web/tests/fixtures/

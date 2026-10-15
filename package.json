@@ -1,0 +1,16 @@
+{
+  "name": "filecopier-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-local file matching, copying and ZIP export",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "sync:pages": "node scripts/sync-pages.mjs",
+    "check:pages": "node scripts/sync-pages.mjs --check",
+    "check": "node scripts/check.mjs",
+    "test": "node --test sites/filecopier-web/tests/core.test.mjs sites/filecopier-web/tests/source-picker.test.mjs"
+  }
+}
