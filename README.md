@@ -2,7 +2,7 @@
 
 숫자·파일명 목록을 기준으로 원본 폴더에서 필요한 파일만 찾아 모으는 웹 도구입니다. 설치, 로그인, 비밀번호 없이 사용할 수 있으며 파일 내용은 사용자의 브라우저에서 처리합니다.
 
-**사이트:** [파일모아 열기](https://filecopier-browser-lucky2449.rocky-okapi-5922.chatgpt.site/)
+**기본 사이트:** [파일모아 열기](https://lucky2449.github.io/selective-file-copier/)
 
 ## 주요 기능
 
@@ -125,16 +125,21 @@ npm test
 
 ## 배포
 
-### GitHub Pages
+### GitHub Pages · 기본 배포
 
-1. `npm run sync:pages`와 `npm run check`를 실행합니다.
-2. 변경 사항을 커밋하고 GitHub에 업로드합니다.
-3. **Settings → Pages → Deploy from a branch**에서 게시 브랜치와 **/docs**를 선택합니다.
+`.github/workflows/pages.yml`이 `main` 브랜치의 push와 수동 실행을 처리합니다.
 
-현재 원격 저장소는 `lucky2449/selective-file-copier`입니다. Pages가 활성화되어 있다면 주소는 [https://lucky2449.github.io/selective-file-copier/](https://lucky2449.github.io/selective-file-copier/)입니다.
+1. 웹 원본 `sites/filecopier-web/dist/`를 수정하고 `main`에 push합니다.
+2. GitHub Actions가 게시본 동기화, 문법 검사와 회귀 테스트를 실행합니다.
+3. 검증에 통과한 웹 원본만 배포합니다. 저장소 전체나 이전 데스크톱 코드는 사이트에 게시하지 않습니다.
+4. https://lucky2449.github.io/selective-file-copier/ 주소가 갱신됩니다.
 
-### Sites
+Pull Request에서는 검증만 실행하며 운영 사이트에는 배포하지 않습니다. 로컬 게시본을 직접 동기화하지 않았더라도 Actions가 배포 전에 생성합니다.
 
-배포 식별자는 `sites/filecopier-web/.openai/hosting.json`에 있습니다. 기존 `project_id`를 유지하고 `dist/`를 정적 배포 대상으로 사용합니다. 사이트 식별자는 인증키가 아니며 배포 토큰·자격 증명은 저장소에 넣지 않습니다.
+처음 설정할 때 저장소 **Settings → Pages → Source**를 **GitHub Actions**로 지정합니다. GitHub Pages 사용이 허용되는 저장소·요금제여야 합니다. 배포에는 GitHub가 실행마다 제공하는 토큰을 사용하므로 별도의 API 키를 등록할 필요가 없습니다.
 
-GitHub 업로드만으로 Sites 사이트가 자동 갱신되지는 않습니다. Sites 배포는 별도 절차로 진행합니다.
+실행 상태는 [Actions](https://github.com/lucky2449/selective-file-copier/actions/workflows/pages.yml)에서 확인합니다. 검증 또는 배포가 실패하면 이전에 배포된 사이트가 유지됩니다.
+
+### 기존 Sites 배포
+
+기존 `chatgpt.site` 주소는 별도 배포입니다. GitHub Actions는 이 주소를 갱신하지 않습니다. 기존 배포 식별자는 `sites/filecopier-web/.openai/hosting.json`에 보존합니다.
