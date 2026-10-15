@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   parseItems,
+  isExcludedFile,
   buildIndex,
   matchItem,
   uniqueName,
@@ -154,4 +155,27 @@ test("ZIP rejects files and entry counts beyond non-ZIP64 limits", async () => {
     /4GB/,
   );
   await assert.rejects(writeZip(new Array(65536), sink), /65,535/);
+});
+
+
+test("exclude Zone.Identifier sidecars from matching and every output selection", () => {
+  const names = [
+    "Zone.Identifier", "photo.jpg.Zone.Identifier", "photo.JPG.ZONE.IDENTIFIER",
+    "photo.jpg:Zone.Identifier", "photo.jpg:Zone.Identifier:$DATA",
+  ];
+  const sidecars = names.map((name) => ({ name, path: `root/${name}` }));
+  const photo = { name: "photo.jpg", path: "root/photo.jpg" };
+  const safeIndex = buildIndex([photo, ...sidecars]);
+  for (const file of sidecars) {
+    assert.equal(isExcludedFile(file.name), true);
+    assert.equal(matchItem(safeIndex, file.name).chosen, null);
+    assert.equal(matchItem(safeIndex, file.path).candidates.length, 0);
+  }
+  assert.deepEqual([...safeIndex.names.keys()], ["photo.jpg"]);
+  assert.equal(matchItem(safeIndex, "photo.jpg").chosen, photo);
+  assert.equal(isExcludedFile("Zone.Identifier.jpg"), false);
+  assert.equal(isExcludedFile("photo.identifier"), false);
+  assert.deepEqual(selectedFiles([photo, ...sidecars].map((chosen) => ({
+    chosen, selected: true,
+  }))), [photo]);
 });

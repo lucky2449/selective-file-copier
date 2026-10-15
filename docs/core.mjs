@@ -11,6 +11,9 @@ export const extension = (name) => {
 };
 export const stem = (name) =>
   extension(name) ? name.slice(0, -extension(name).length) : name;
+// Exclude Windows download-origin sidecars without touching the source files.
+export const isExcludedFile = (name) =>
+  /(?:^|[.:])zone\.identifier(?::\$data)?$/i.test(name);
 export const numericId = (value) => value.replace(/^0+(?=\d)/, "");
 export function parseItems(text) {
   const items = [];
@@ -37,6 +40,7 @@ export function buildIndex(files, filter = "") {
     paths: new Map(),
   };
   for (const file of files) {
+    if (isExcludedFile(file.name)) continue;
     if (filter && extension(file.name) !== filter.toLowerCase()) continue;
     add(index.names, normalize(file.name), file);
     add(index.stems, normalize(stem(file.name)), file);
@@ -55,6 +59,8 @@ export function buildIndex(files, filter = "") {
   return index;
 }
 export function matchItem(index, item) {
+  if (isExcludedFile(normalize(item).split("/").at(-1)))
+    return { item, candidates: [], chosen: null, selected: false };
   const normalized = normalize(item);
   let candidates = [];
   if (normalized.includes("/")) {
@@ -97,7 +103,7 @@ export function selectedFiles(rows) {
   return [
     ...new Map(
       rows
-        .filter((row) => row.selected && row.chosen)
+        .filter((row) => row.selected && row.chosen && !isExcludedFile(row.chosen.name))
         .map((row) => [row.chosen.path, row.chosen]),
     ).values(),
   ];

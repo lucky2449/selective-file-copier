@@ -6,6 +6,7 @@ import {
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,
+  isExcludedFile,
   buildIndex,
   matchItem,
   stem,
@@ -176,6 +177,7 @@ function render() {
   updateSummary();
 }
 function acceptSource(files, name, source = null) {
+  files = files.filter((file) => !isExcludedFile(file.name));
   state.files = files;
   state.source = source;
   state.dest = null;
@@ -231,7 +233,9 @@ $("reference").addEventListener("click", () => $("reference-input").click());
 $("reference-input").addEventListener("change", (event) => {
   if (event.target.files.length) {
     $("items").value = [
-      ...new Set([...event.target.files].map((file) => stem(file.name))),
+      ...new Set([...event.target.files]
+        .filter((file) => !isExcludedFile(file.name))
+        .map((file) => stem(file.name))),
     ]
       .map((name) => `"${name}"`)
       .join("\n");

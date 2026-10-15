@@ -473,3 +473,21 @@ test("standard input can choose a destination before and after downloading and c
     h.restore();
   }
 });
+
+
+test("source counts and downloads exclude Zone.Identifier sidecars", async () => {
+  const h = await setup();
+  try {
+    const photo = inputFile("source/photo.jpg", "original");
+    await searchInput(h.el, [photo,
+      inputFile("source/photo.jpg.Zone.Identifier", "metadata"),
+      inputFile("source/Zone.Identifier", "metadata"),
+    ], "photo.jpg\nphoto.jpg.Zone.Identifier\nZone.Identifier");
+    assert.match(h.el("source-detail").textContent, /^1/);
+    await h.el("copy").fire("click");
+    assert.deepEqual(h.downloads.map((file) => file.name), ["photo.jpg"]);
+    assert.equal(h.downloads[0].blob, photo);
+  } finally {
+    h.restore();
+  }
+});
