@@ -46,6 +46,7 @@ test("app blocks identical folders at selection and rechecks before any destinat
   let nextDirectory;
   let pickerError;
   let pickerCalls = 0;
+  let lastPickerOptions;
   const written = [];
   let destinationReads = 0,
     createdFiles = 0;
@@ -92,7 +93,8 @@ test("app blocks identical folders at selection and rechecks before any destinat
       body: new Element(),
     };
     globalThis.window = {
-      showDirectoryPicker: async () => {
+      showDirectoryPicker: async (options) => {
+        lastPickerOptions = options;
         pickerCalls++;
         if (pickerError) throw pickerError;
         return nextDirectory;
@@ -142,8 +144,8 @@ test("app blocks identical folders at selection and rechecks before any destinat
     await element("search").fire("click");
     assert.equal(
       element("copy").disabled,
-      true,
-      "Destination is required for copying",
+      false,
+      "Copy is available without preselecting a destination",
     );
     assert.equal(element("copy").textContent, "선택 파일 복사");
     assert.equal(
@@ -151,15 +153,76 @@ test("app blocks identical folders at selection and rechecks before any destinat
       false,
       "ZIP remains an explicit alternative",
     );
+    pickerError = new DOMException("Cancelled", "AbortError");
     await element("copy").fire("click");
-    assert.match(element("toast").textContent, /저장 폴더를 먼저 선택/);
+    assert.deepEqual(lastPickerOptions, {
+      mode: "readwrite",
+      startIn: "downloads",
+    });
     assert.equal(destinationReads, 0);
+    assert.equal(createdFiles, 0);
+    assert.equal(element("copy").disabled, false);
+    pickerError = new DOMException("Denied", "NotAllowedError");
+    await element("copy").fire("click");
+    assert.match(element("toast").textContent, /접근이 허용되지/);
+    assert.equal(createdFiles, 0);
+    pickerError = null;
+    nextDirectory = source;
+    await element("copy").fire("click");
+    assert.match(
+      element("toast").textContent,
+      /원본 폴더와 저장 폴더가 같습니다/,
+    );
+    assert.equal(createdFiles, 0);
+
+    let createdFolders = 0;
+    const parent = {
+      kind: "directory",
+      name: "Downloads",
+      id: "downloads",
+      async *values() {},
+      async getDirectoryHandle(name, options) {
+        if (!options?.create)
+          throw new DOMException("Missing", "NotFoundError");
+        createdFolders++;
+        return { ...destination, id: `downloads/${name}`, name };
+      },
+    };
+    nextDirectory = parent;
+    await element("copy").fire("click");
+    assert.equal(createdFolders, 1);
+    assert.equal(createdFiles, 1);
+    assert.equal(await new Blob(written).text(), "photo");
+    assert.match(
+      element("copy-output").textContent,
+      /Downloads\/파일모아_\d{8}_\d{6}/,
+    );
+    assert.equal(element("copy-output").hidden, false);
+    assert.equal(
+      element("dest-label").textContent,
+      "저장 폴더 선택 (선택 사항)",
+    );
+    await element("copy").fire("click");
+    assert.equal(
+      createdFolders,
+      2,
+      "Each default copy requests a new output folder",
+    );
+    destinationReads = 0;
+    createdFiles = 0;
+    written.length = 0;
 
     nextDirectory = destination;
     await element("destination").fire("click");
     assert.equal(element("dest-label").textContent, "output");
     assert.equal(element("copy").disabled, false);
+    const callsBeforeExplicitCopy = pickerCalls;
     await element("copy").fire("click");
+    assert.equal(
+      pickerCalls,
+      callsBeforeExplicitCopy,
+      "Explicit destination must not reopen the picker",
+    );
     assert.equal(createdFiles, 1);
     assert.equal(
       await new Blob(written).text(),
@@ -198,6 +261,12 @@ test("app blocks identical folders at selection and rechecks before any destinat
       /원본 폴더와 저장 폴더가 같습니다/,
     );
 
+    await element("destination-reset").fire("click");
+    assert.equal(
+      element("dest-label").textContent,
+      "저장 폴더 선택 (선택 사항)",
+    );
+    assert.equal(element("destination-reset").hidden, true);
     await element("source-alternative").fire("click");
     assert.equal(
       fallbackClicks,

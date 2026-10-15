@@ -139,13 +139,18 @@
               <span id="selected-count">선택한 파일 0개</span>
             </div>
             <button id="destination" class="destination">
-              <span>▱</span><span id="dest-label">저장 폴더 선택 (필수)</span
+              <span>▱</span
+              ><span id="dest-label">저장 폴더 선택 (선택 사항)</span
               ><span>↗</span>
             </button>
+            <button id="destination-reset" class="text-btn" hidden>
+              기본 저장 사용
+            </button>
             <p id="save-hint" class="hint">
-              원본 폴더와 다른 저장 폴더를 선택한 뒤 파일을 직접 복사하세요. ZIP
-              다운로드는 별도 대체 기능입니다.
+              저장 위치를 미리 고르지 않아도 됩니다. 복사할 때 위치를 확인하면
+              새 폴더를 자동 생성해 저장합니다. ZIP으로 자동 전환하지 않습니다.
             </p>
+            <p id="copy-output" class="hint" hidden></p>
             <div class="save-actions">
               <button id="copy" class="primary" disabled>선택 파일 복사</button
               ><button id="zip" class="secondary" disabled>

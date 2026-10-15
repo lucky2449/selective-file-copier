@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertDistinctDirectories,
+  createCopyDirectory,
   readSourceDirectory,
   selectNativeSource,
 } from "../dist/directory-access.mjs";
@@ -162,4 +163,69 @@ test("native handles without identity support cannot enable direct copying", asy
     /동일 여부를 확인할 수 없습니다/,
   );
   assert.equal(scanning, false);
+});
+
+test("automatic output folders use local date/time and avoid file and folder collisions", async () => {
+  const now = new Date(2026, 9, 15, 13, 4, 5);
+  const base = "파일모아_20261015_130405";
+  const source = directory("source", "source");
+  const parent = directory("downloads", "Downloads", [
+    directory("old", base),
+    file(`${base}_1`),
+  ]);
+  const calls = [];
+  parent.getDirectoryHandle = async (name, options) => {
+    calls.push([name, options]);
+    if (!options?.create) {
+      if (name === `${base}_2`) return directory("raced", name);
+      if (name === `${base}_3`)
+        throw new DOMException("File appeared", "TypeMismatchError");
+      throw new DOMException("Missing", "NotFoundError");
+    }
+    return directory("new", name);
+  };
+  const output = await createCopyDirectory(source, parent, { now });
+  assert.equal(output.name, `${base}_4`);
+  assert.deepEqual(calls.at(-1), [`${base}_4`, { create: true }]);
+  assert.equal(calls.filter(([, options]) => options?.create).length, 1);
+});
+
+test("automatic folder creation rejects same source and propagates denied access", async () => {
+  const source = directory("source", "source");
+  source.getDirectoryHandle = () =>
+    assert.fail("Must not create inside rejected source");
+  await assert.rejects(
+    createCopyDirectory(source, source),
+    /원본 폴더와 저장 폴더가 같습니다/,
+  );
+  const parent = directory("downloads", "Downloads");
+  let creations = 0;
+  parent.getDirectoryHandle = async (_, options) => {
+    if (options?.create) creations++;
+    throw new DOMException("Denied", "NotAllowedError");
+  };
+  await assert.rejects(createCopyDirectory(source, parent), {
+    name: "NotAllowedError",
+  });
+  assert.equal(creations, 0);
+});
+
+test("cancelled automatic folder preparation creates no directory", async () => {
+  const source = directory("source", "source");
+  const parent = directory("downloads", "Downloads");
+  parent.getDirectoryHandle = () =>
+    assert.fail("Cancelled job must not create a directory");
+  await assert.rejects(
+    createCopyDirectory(source, parent, { cancelled: () => true }),
+    { name: "AbortError" },
+  );
+  let cancelled = false;
+  parent.values = async function* () {
+    cancelled = true;
+    yield file("existing.jpg");
+  };
+  await assert.rejects(
+    createCopyDirectory(source, parent, { cancelled: () => cancelled }),
+    { name: "AbortError" },
+  );
 });
