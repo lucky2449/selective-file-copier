@@ -717,3 +717,45 @@ for (const scenario of [
     }
   });
 }
+
+test("an inferred single candidate cannot be downloaded until explicitly confirmed", async () => {
+  const h = await setup();
+  try {
+    const original = inputFile("source/P1000001.RW2", "original RAW bytes");
+    await searchInput(h.el, [original], "1");
+    assert.equal(h.el("stat-found").textContent, 0);
+    assert.equal(h.el("stat-attention").textContent, 1);
+    assert.equal(h.el("copy").disabled, true);
+    assert.equal(h.el("zip").disabled, true);
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length, 0);
+    const findSelect = (node) => {
+      if (
+        node.handlers?.has("change") &&
+        node.children?.some((child) => child.text?.includes("후보"))
+      )
+        return node;
+      for (const child of node.children ?? []) {
+        const found = findSelect(child);
+        if (found) return found;
+      }
+    };
+    const select = findSelect(h.el("rows"));
+    assert.ok(select, "Single inferred candidate needs a confirmation control");
+    select.value = "0";
+    await select.fire("change");
+    assert.equal(h.el("copy").disabled, false);
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length, 1);
+    assert.equal(h.downloads[0].blob, original);
+    assert.equal(await original.text(), "original RAW bytes");
+    h.el("camera-numbers").checked = false;
+    await h.el("camera-numbers").fire("change");
+    await h.el("search").fire("click");
+    assert.equal(h.el("copy").disabled, true);
+    await h.el("reset").fire("click");
+    assert.equal(h.el("camera-numbers").checked, true);
+  } finally {
+    h.restore();
+  }
+});

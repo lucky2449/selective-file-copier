@@ -1,3 +1,4 @@
+import { recognizeCameraNumber } from "./camera-number.mjs";
 // Pure matching functions shared by the browser and regression checks.
 export const normalize = (value) =>
   value
@@ -32,12 +33,13 @@ const add = (map, key, file) => {
   if (!map.has(key)) map.set(key, []);
   map.get(key).push(file);
 };
-export function buildIndex(files, filter = "") {
+export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
   const index = {
     targetExtension: filter.toLowerCase(),
     names: new Map(),
     stems: new Map(),
     ids: new Map(),
+    cameraIds: new Map(),
     paths: new Map(),
   };
   for (const file of files) {
@@ -55,8 +57,18 @@ export function buildIndex(files, filter = "") {
       slash = path.indexOf("/", slash + 1)
     )
       add(index.paths, path.slice(slash + 1), file);
-    const digits = stem(file.name).match(/(\d+)$/)?.[1];
-    if (digits) add(index.ids, numericId(digits), file);
+    const base = stem(file.name);
+    const digits = base.match(/(\d+)$/)?.[1];
+    const camera = cameraNumbers
+      ? recognizeCameraNumber(base, extension(file.name))
+      : null;
+    if (digits && !camera?.ignoreTrailing)
+      add(index.ids, numericId(digits), file);
+    for (const hint of camera?.hints ?? []) {
+      if (digits && !camera.ignoreTrailing && hint.id === numericId(digits))
+        continue;
+      add(index.cameraIds, hint.id, { file, reason: hint.reason });
+    }
   }
   return index;
 }
@@ -65,6 +77,8 @@ export function matchItem(index, item) {
     return { item, candidates: [], chosen: null, selected: false };
   const normalized = normalize(item);
   let candidates = [];
+  let requiresConfirmation = false;
+  const candidateReasons = new Map();
   if (normalized.includes("/")) {
     candidates = index.paths.get(normalized) ?? [];
     // Ignore unavailable drive prefixes by progressively trying path suffixes.
@@ -81,16 +95,28 @@ export function matchItem(index, item) {
   // only when the user explicitly selects a target extension filter.
   if (!candidates.length && (!extension(name) || index.targetExtension))
     candidates = index.stems.get(normalize(stem(name))) ?? [];
-  if (!candidates.length && /^\d+$/.test(item))
-    candidates = index.ids.get(numericId(item)) ?? [];
+  if (!candidates.length && /^\d+$/.test(item)) {
+    const id = numericId(item);
+    const inferred = index.cameraIds.get(id) ?? [];
+    candidates = [
+      ...(index.ids.get(id) ?? []),
+      ...inferred.map((entry) => entry.file),
+    ];
+    requiresConfirmation = inferred.length > 0;
+    for (const entry of inferred)
+      candidateReasons.set(entry.file.path, entry.reason);
+  }
   candidates = [
     ...new Map(candidates.map((file) => [file.path, file])).values(),
   ];
   return {
     item,
     candidates,
-    chosen: candidates.length === 1 ? candidates[0] : null,
-    selected: candidates.length === 1,
+    chosen:
+      candidates.length === 1 && !requiresConfirmation ? candidates[0] : null,
+    selected: candidates.length === 1 && !requiresConfirmation,
+    requiresConfirmation,
+    candidateReasons,
   };
 }
 export function uniqueName(name, occupied) {

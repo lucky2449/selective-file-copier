@@ -16,7 +16,7 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs";
+} from "./core.mjs?v=camera-numbers-1";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
@@ -67,6 +67,7 @@ function setBusy(value) {
     "load-text",
     "items",
     "extension",
+    "camera-numbers",
     "search",
     "select-all",
   ])
@@ -140,17 +141,24 @@ function render() {
     checkCell.append(checkbox);
     content.append(node("span", row.item, "file-name"));
     if (row.chosen) content.append(node("span", row.chosen.path, "file-path"));
-    if (row.candidates.length > 1) {
+    if (row.candidates.length > 1 || row.requiresConfirmation) {
       const select = node("select", undefined, "row-select");
       select.setAttribute("aria-label", `${row.item}의 복사할 파일 선택`);
       select.append(
         new Option(
-          `같은 이름 ${row.candidates.length}개 · 파일을 선택하세요`,
+          row.requiresConfirmation
+            ? `사진 번호 후보 ${row.candidates.length}개 · 확인 후 선택하세요`
+            : `같은 이름 ${row.candidates.length}개 · 파일을 선택하세요`,
           "",
         ),
       );
       row.candidates.forEach((file, i) =>
-        select.append(new Option(file.path, String(i))),
+        select.append(
+          new Option(
+            `${file.path}${row.candidateReasons?.has(file.path) ? " · " + row.candidateReasons.get(file.path) : ""}`,
+            String(i),
+          ),
+        ),
       );
       if (row.chosen) select.value = String(row.candidates.indexOf(row.chosen));
       select.addEventListener("change", () => {
@@ -164,7 +172,9 @@ function render() {
     const text = row.chosen
       ? "찾음"
       : row.candidates.length
-        ? "파일 선택"
+        ? row.requiresConfirmation
+          ? "번호 확인"
+          : "파일 선택"
         : "찾지 못함";
     statusCell.append(
       node(
@@ -273,6 +283,7 @@ $("text-input").addEventListener("change", async (event) => {
 });
 $("items").addEventListener("input", invalidate);
 $("extension").addEventListener("change", invalidate);
+$("camera-numbers").addEventListener("change", invalidate);
 $("search").addEventListener("click", async () => {
   if (!state.files.length) {
     toast("원본 폴더를 먼저 선택하세요.");
@@ -293,7 +304,9 @@ $("search").addEventListener("click", async () => {
   progress(0, "파일 검색 중...");
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
-    const index = buildIndex(state.files, $("extension").value),
+    const index = buildIndex(state.files, $("extension").value, {
+        cameraNumbers: $("camera-numbers").checked !== false,
+      }),
       rows = [];
     for (let i = 0; i < items.length; i++) {
       if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
@@ -306,13 +319,15 @@ $("search").addEventListener("click", async () => {
     state.rows = rows;
     render();
     const missing = rows.filter((row) => !row.candidates.length).length,
-      ambiguous = rows.filter((row) => row.candidates.length > 1).length;
+      ambiguous = rows.filter(
+        (row) => row.candidates.length && !row.chosen,
+      ).length;
     log(
-      `검색 완료: 요청 ${rows.length}개 / 찾음 ${rows.length - missing - ambiguous}개 / 중복 후보 ${ambiguous}개 / 누락 ${missing}개`,
+      `검색 완료: 요청 ${rows.length}개 / 찾음 ${rows.length - missing - ambiguous}개 / 확인 필요 ${ambiguous}개 / 누락 ${missing}개`,
     );
     if (ambiguous)
       toast(
-        "같은 이름의 파일이 있습니다. 검색 결과에서 복사할 파일을 선택하세요.",
+        "추정한 사진 번호 또는 중복 후보가 있습니다. 검색 결과에서 파일을 확인하고 선택하세요.",
       );
   } catch (error) {
     if (error.name === "AbortError") log("검색을 취소했습니다.");
@@ -619,6 +634,7 @@ $("reset").addEventListener("click", () => {
     cancelled: false,
   });
   $("items").value = "";
+  $("camera-numbers").checked = true;
   $("copy-output").hidden = true;
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";
   $("source-detail").textContent = "하위 폴더의 파일까지 함께 검색합니다";

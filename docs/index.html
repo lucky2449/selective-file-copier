@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=dark-2" />
-    <script type="module" src="./app.mjs?v=destination-selection-2"></script>
+    <script type="module" src="./app.mjs?v=camera-numbers-1"></script>
   </head>
   <body>
     <header>
@@ -104,6 +104,11 @@
             JPG 이름을 입력하고 RAW 확장자를 선택하면 같은 이름의 RAW 파일을
             찾습니다.
           </p>
+          <label class="hint">
+            <input id="camera-numbers" type="checkbox" checked />
+            제조사별 사진 번호 후보 포함
+          </label>
+          <p class="hint">추정한 번호는 자동 선택하지 않습니다. 검색 결과에서 파일명과 경로를 확인하세요.</p>
           <button id="search" class="primary full">
             파일 찾기 <span>→</span>
           </button>
