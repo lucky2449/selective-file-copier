@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertDistinctDirectories,
+  createResultDirectory,
   readSourceDirectory,
   selectNativeSource,
 } from "../dist/directory-access.mjs";
@@ -162,4 +163,39 @@ test("native handles without identity support cannot enable direct copying", asy
     /동일 여부를 확인할 수 없습니다/,
   );
   assert.equal(scanning, false);
+});
+
+test("result folders never reuse existing folders or files and stop on denied access or cancellation", async () => {
+  let creations = 0,
+    candidate = 0;
+  const parent = {
+    kind: "directory",
+    async getDirectoryHandle(name, options) {
+      if (options?.create) {
+        creations++;
+        return directory(name, name);
+      }
+      if (name === "candidate-0") return directory("existing", name);
+      if (name === "candidate-1")
+        throw new DOMException("File collision", "TypeMismatchError");
+      throw new DOMException("Missing", "NotFoundError");
+    },
+  };
+  const result = await createResultDirectory(parent, {
+    makeName: () => `candidate-${candidate++}`,
+  });
+  assert.equal(result.name, "candidate-2");
+  assert.equal(creations, 1);
+  await assert.rejects(
+    createResultDirectory(parent, { cancelled: () => true }),
+    { name: "AbortError" },
+  );
+  assert.equal(creations, 1);
+  parent.getDirectoryHandle = async () => {
+    throw new DOMException("Denied", "NotAllowedError");
+  };
+  await assert.rejects(createResultDirectory(parent), {
+    name: "NotAllowedError",
+  });
+  await assert.rejects(createResultDirectory(null), /저장 폴더를 다시 선택/);
 });

@@ -1,7 +1,8 @@
 import {
   assertDistinctDirectories,
+  createResultDirectory,
   selectNativeSource,
-} from "./directory-access.mjs";
+} from "./directory-access.mjs?v=result-folder-1";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,
@@ -77,13 +78,14 @@ function invalidate() {
   $("progress-wrap").hidden = true;
 }
 function refreshSaveOptions() {
-  $("destination").disabled =
-    state.busy || !canChooseDestination || !state.source;
+  $("destination").disabled = state.busy || !canChooseDestination;
   $("dest-label").textContent = state.dest?.name ?? defaultDestinationLabel;
   $("destination-reset").hidden = !state.dest;
   $("destination-reset").disabled = state.busy;
   $("save-hint").textContent = state.dest
-    ? "선택 파일을 지정한 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
+    ? state.source
+      ? "선택 파일을 지정한 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
+      : "선택한 저장 폴더 안에 새 결과 폴더를 만들어 복사합니다. 원본 파일은 변경하지 않습니다."
     : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
 }
 function updateSummary() {
@@ -322,7 +324,9 @@ $("destination").addEventListener("click", async () => {
   }
   try {
     const dest = await window.showDirectoryPicker({ mode: "readwrite" });
-    await assertDistinctDirectories(state.source, dest);
+    if (dest?.kind !== "directory")
+      throw new Error("저장 폴더를 다시 선택하세요.");
+    if (state.source) await assertDistinctDirectories(state.source, dest);
     state.dest = dest;
     $("dest-label").textContent = dest.name;
     updateSummary();
@@ -483,9 +487,18 @@ async function copyFiles() {
   let success = 0,
     failed = 0;
   try {
-    const dest = state.dest;
-    const outputLabel = dest.name;
-    await assertDistinctDirectories(state.source, dest);
+    let dest = state.dest;
+    let outputLabel = dest.name;
+    if (state.source) {
+      await assertDistinctDirectories(state.source, dest);
+    } else {
+      // Standard inputs expose Files, not identity-verifiable directory handles.
+      // Isolate every copy in a fresh child instead of writing into the parent.
+      dest = await createResultDirectory(dest, {
+        cancelled: () => state.cancelled,
+      });
+      outputLabel = `${state.dest.name}/${dest.name}`;
+    }
     if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
     $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;
     $("copy-output").hidden = false;
