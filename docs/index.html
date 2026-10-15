@@ -42,10 +42,7 @@
             ><span id="source-detail">하위 폴더의 파일까지 함께 검색합니다</span
             ><b>폴더 선택 ↗</b></button
           ><button id="source-alternative" class="text-btn source-alternative">
-            파일 선택창으로 폴더 열기
-          </button>
-          <button id="source-native" class="text-btn source-alternative" hidden>
-            폴더 직접 복사용으로 열기
+            직접 복사가 어려운 경우: 파일 선택창으로 열기 (ZIP용)
           </button>
           <input
             id="folder-input"
@@ -142,18 +139,17 @@
               <span id="selected-count">선택한 파일 0개</span>
             </div>
             <button id="destination" class="destination">
-              <span>▱</span
-              ><span id="dest-label">저장 폴더 선택 (선택 사항)</span
+              <span>▱</span><span id="dest-label">저장 폴더 선택 (필수)</span
               ><span>↗</span>
             </button>
             <p id="save-hint" class="hint">
-              브라우저가 지원하면 폴더에 직접 복사하고, 미지원 환경에서는 ZIP
-              다운로드로 대체합니다.
+              원본 폴더와 다른 저장 폴더를 선택한 뒤 파일을 직접 복사하세요. ZIP
+              다운로드는 별도 대체 기능입니다.
             </p>
             <div class="save-actions">
               <button id="copy" class="primary" disabled>선택 파일 복사</button
               ><button id="zip" class="secondary" disabled>
-                ZIP 다운로드 ↓</button
+                ZIP 다운로드 (대체) ↓</button
               ><button id="cancel" class="secondary" hidden>작업 취소</button>
             </div>
             <div id="progress-wrap" hidden>

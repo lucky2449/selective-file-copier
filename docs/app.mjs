@@ -17,7 +17,7 @@ import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const canChooseDestination = typeof window.showDirectoryPicker === "function";
 const defaultDestinationLabel = canChooseDestination
-  ? "저장 폴더 선택 (선택 사항)"
+  ? "저장 폴더 선택 (필수)"
   : "현재 브라우저는 폴더 직접 저장을 지원하지 않습니다";
 const state = {
   files: [],
@@ -55,7 +55,6 @@ function setBusy(value) {
   for (const id of [
     "source",
     "source-alternative",
-    "source-native",
     "reset",
     "reference",
     "load-text",
@@ -65,6 +64,7 @@ function setBusy(value) {
     "select-all",
   ])
     $(id).disabled = value;
+  $("source").disabled = value || !canChooseDestination;
   $("cancel").hidden = !value;
   for (const input of $("rows").querySelectorAll("input,select"))
     input.disabled = value || input.dataset.unavailable === "true";
@@ -82,10 +82,14 @@ function refreshSaveOptions() {
     state.busy || !canChooseDestination || !state.source;
   $("dest-label").textContent = state.dest?.name ?? defaultDestinationLabel;
   $("save-hint").textContent = !canChooseDestination
-    ? "이 브라우저에서는 ZIP 다운로드로 저장합니다. 폴더 직접 복사는 지원 브라우저에서 사용할 수 있습니다."
+    ? "폴더 직접 복사를 지원하지 않는 환경입니다. 데스크톱 Chrome·Edge의 새 탭에서 여세요. ZIP은 별도 대체 기능입니다."
     : state.source
-      ? "원본과 다른 저장 폴더를 선택하세요. 선택하지 않으면 ZIP으로 저장합니다."
-      : "폴더 직접 복사는 ‘폴더 직접 복사용으로 열기’로 원본을 선택한 뒤 사용할 수 있습니다. 파일 선택창으로 읽은 원본은 ZIP으로 저장합니다.";
+      ? state.dest
+        ? "선택 파일을 저장 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
+        : "직접 복사할 저장 폴더를 먼저 선택하세요. 원본과 다른 폴더여야 합니다."
+      : state.files.length
+        ? "파일 선택창으로 읽은 원본은 ZIP 다운로드만 가능합니다. 직접 복사하려면 위의 원본 폴더 선택 버튼으로 다시 여세요."
+        : "원본 폴더를 선택한 다음 저장 폴더를 지정하면 파일을 직접 복사합니다.";
 }
 function updateSummary() {
   refreshSaveOptions();
@@ -95,9 +99,10 @@ function updateSummary() {
   $("stat-found").textContent = resolved;
   $("stat-attention").textContent = state.rows.length - resolved;
   $("selected-count").textContent = `선택한 파일 ${selected.length}개`;
-  $("copy").disabled = state.busy || !selected.length;
+  $("copy").disabled =
+    state.busy || !selected.length || !state.source || !state.dest;
   $("zip").disabled = state.busy || !selected.length;
-  $("copy").textContent = state.dest ? "선택 파일 복사" : "선택 파일 ZIP 저장";
+  $("copy").textContent = "선택 파일 복사";
   const available = state.rows.filter((row) => row.chosen);
   $("select-all").checked =
     available.length > 0 && available.every((row) => row.selected);
@@ -190,16 +195,24 @@ function acceptSource(files, name, source = null) {
   log(`원본 폴더: ${name} / ${files.length.toLocaleString()}개 파일`);
   if (!files.length) toast("선택한 폴더에 파일이 없습니다.");
 }
-// Use the standard directory input for both entry points. Calling an asynchronous
-// native picker first can silently abort in embedded browsers or consume activation.
+// Keep ZIP fallback explicit. Never retry an input after a native picker failure:
+// a second picker would no longer have the original user activation.
 bindSourcePicker({
-  buttons: [$("source"), $("source-alternative")],
+  buttons: [$("source-alternative")],
   input: $("folder-input"),
   onFiles: (files, name) => acceptSource(files, name),
   onError: report,
 });
-$("source-native").hidden = !canChooseDestination;
-$("source-native").addEventListener("click", async () => {
+$("source").disabled = !canChooseDestination;
+if (!canChooseDestination) {
+  $("source-detail").textContent =
+    "직접 복사는 데스크톱 Chrome·Edge의 새 탭에서 이용하세요";
+}
+$("source").addEventListener("click", async () => {
+  if (!canChooseDestination) {
+    toast("폴더 직접 복사를 지원하는 브라우저에서 사이트를 여세요.");
+    return;
+  }
   try {
     const selection = await selectNativeSource(
       (options) => window.showDirectoryPicker(options),
@@ -214,7 +227,11 @@ $("source-native").addEventListener("click", async () => {
     );
     acceptSource(selection.files, selection.name, selection.handle);
   } catch (error) {
-    report(error);
+    if (error.name === "SecurityError" || error.name === "NotAllowedError") {
+      toast(
+        "폴더 접근이 차단되었습니다. 데스크톱 Chrome·Edge의 새 탭에서 사이트를 열고 다시 선택하세요. ZIP 대체는 아래 파일 선택창 버튼을 사용하세요.",
+      );
+    } else report(error);
   } finally {
     setBusy(false);
     $("progress-wrap").hidden = true;
@@ -416,8 +433,8 @@ async function exportZip(usePicker = true) {
   }
 }
 async function copyFiles() {
-  if (!state.dest) {
-    await exportZip();
+  if (!state.source || !state.dest) {
+    toast("직접 복사하려면 원본 폴더와 저장 폴더를 먼저 선택하세요.");
     return;
   }
   const files = selectedFiles(state.rows);
@@ -528,7 +545,9 @@ $("reset").addEventListener("click", () => {
   });
   $("items").value = "";
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";
-  $("source-detail").textContent = "하위 폴더의 파일까지 함께 검색합니다";
+  $("source-detail").textContent = canChooseDestination
+    ? "하위 폴더의 파일까지 함께 검색합니다"
+    : "직접 복사는 데스크톱 Chrome·Edge의 새 탭에서 이용하세요";
   $("dest-label").textContent = defaultDestinationLabel;
   $("extension").replaceChildren(new Option("모든 파일", ""));
   $("log").textContent =
