@@ -157,11 +157,13 @@ test("ZIP rejects files and entry counts beyond non-ZIP64 limits", async () => {
   await assert.rejects(writeZip(new Array(65536), sink), /65,535/);
 });
 
-
 test("exclude Zone.Identifier sidecars from matching and every output selection", () => {
   const names = [
-    "Zone.Identifier", "photo.jpg.Zone.Identifier", "photo.JPG.ZONE.IDENTIFIER",
-    "photo.jpg:Zone.Identifier", "photo.jpg:Zone.Identifier:$DATA",
+    "Zone.Identifier",
+    "photo.jpg.Zone.Identifier",
+    "photo.JPG.ZONE.IDENTIFIER",
+    "photo.jpg:Zone.Identifier",
+    "photo.jpg:Zone.Identifier:$DATA",
   ];
   const sidecars = names.map((name) => ({ name, path: `root/${name}` }));
   const photo = { name: "photo.jpg", path: "root/photo.jpg" };
@@ -175,7 +177,62 @@ test("exclude Zone.Identifier sidecars from matching and every output selection"
   assert.equal(matchItem(safeIndex, "photo.jpg").chosen, photo);
   assert.equal(isExcludedFile("Zone.Identifier.jpg"), false);
   assert.equal(isExcludedFile("photo.identifier"), false);
-  assert.deepEqual(selectedFiles([photo, ...sidecars].map((chosen) => ({
-    chosen, selected: true,
-  }))), [photo]);
+  assert.deepEqual(
+    selectedFiles(
+      [photo, ...sidecars].map((chosen) => ({
+        chosen,
+        selected: true,
+      })),
+    ),
+    [photo],
+  );
+});
+
+test("an explicit extension never falls back to another format in all-files mode", () => {
+  for (const ext of ["xmp", "mp4", "cr3", "jpeg"]) {
+    const file = { name: `IMG_0001.${ext}`, path: `root/IMG_0001.${ext}` };
+    const index = buildIndex([file]);
+    for (const item of [
+      "IMG_0001.JPG",
+      "root/IMG_0001.JPG",
+      "C:\\root\\IMG_0001.JPG",
+    ]) {
+      const row = matchItem(index, item);
+      assert.deepEqual(row.candidates, [], `${item} must not match ${ext}`);
+      assert.equal(row.chosen, null);
+      assert.equal(row.selected, false);
+      assert.deepEqual(selectedFiles([row]), []);
+    }
+  }
+});
+
+test("exact extensions remain case insensitive and extensionless searches retain ambiguity", () => {
+  const files = ["IMG_0001.JPG", "IMG_0001.XMP", "IMG_0001.MP4"].map(
+    (name) => ({
+      name,
+      path: `root/${name}`,
+    }),
+  );
+  const index = buildIndex(files);
+  assert.equal(matchItem(index, "img_0001.jpg").chosen, files[0]);
+  assert.equal(matchItem(index, "IMG_0001").candidates.length, 3);
+  assert.equal(matchItem(index, "IMG_0001").chosen, null);
+  assert.equal(matchItem(buildIndex([files[0]]), "IMG_0001").chosen, files[0]);
+});
+
+test("cross-format matching requires an explicit target extension filter", () => {
+  const raw = { name: "IMG_0001.CR3", path: "root/IMG_0001.CR3" };
+  const video = { name: "IMG_0001.MP4", path: "root/IMG_0001.MP4" };
+  assert.deepEqual(
+    matchItem(buildIndex([raw, video]), "IMG_0001.JPG").candidates,
+    [],
+  );
+  assert.equal(
+    matchItem(buildIndex([raw, video], ".CR3"), "IMG_0001.JPG").chosen,
+    raw,
+  );
+  assert.equal(
+    matchItem(buildIndex([raw, video], ".jpg"), "IMG_0001.JPG").chosen,
+    null,
+  );
 });

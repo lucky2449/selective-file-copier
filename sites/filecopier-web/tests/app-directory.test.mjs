@@ -586,3 +586,47 @@ for (const failure of ["open", "write", "close", "cancel", "race", "abort"]) {
     }
   });
 }
+
+test("imported reference names preserve extensions and cannot download a substitute format", async () => {
+  const h = await setup();
+  try {
+    h.el("folder-input").files = [inputFile("source/photo.MP4", "video")];
+    await h.el("folder-input").fire("change");
+    h.el("reference-input").files = [
+      inputFile("reference/photo.JPG"),
+      inputFile("reference/photo.JPG.Zone.Identifier"),
+    ];
+    await h.el("reference-input").fire("change");
+    assert.equal(h.el("items").value, '\"photo.JPG\"');
+    await h.el("search").fire("click");
+    assert.equal(h.el("copy").disabled, true);
+    assert.equal(h.el("zip").disabled, true);
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length, 0);
+  } finally {
+    h.restore();
+  }
+});
+
+test("an explicit RAW filter still allows a JPG reference to download the RAW bytes", async () => {
+  const h = await setup();
+  try {
+    const raw = inputFile("source/photo.CR3", "RAW bytes");
+    await searchInput(
+      h.el,
+      [raw, inputFile("source/photo.MP4", "video")],
+      "photo.JPG",
+    );
+    assert.equal(h.el("copy").disabled, true);
+    h.el("extension").value = ".cr3";
+    await h.el("search").fire("click");
+    await h.el("copy").fire("click");
+    assert.deepEqual(
+      h.downloads.map((file) => file.name),
+      ["photo.CR3"],
+    );
+    assert.equal(h.downloads[0].blob, raw);
+  } finally {
+    h.restore();
+  }
+});

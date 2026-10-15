@@ -10,7 +10,6 @@ import {
   isExcludedFile,
   buildIndex,
   matchItem,
-  stem,
   extension,
   normalize,
   uniqueName,
@@ -235,7 +234,7 @@ $("reference-input").addEventListener("change", (event) => {
       ...new Set(
         [...event.target.files]
           .filter((file) => !isExcludedFile(file.name))
-          .map((file) => stem(file.name)),
+          .map((file) => file.name),
       ),
     ]
       .map((name) => `"${name}"`)
