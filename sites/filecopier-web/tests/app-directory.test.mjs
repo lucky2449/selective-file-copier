@@ -197,6 +197,9 @@ test("native selection and explicit copying retain directory identity checks and
     kind: "directory",
     name: "source",
     id: "source",
+    async resolve() {
+      return null;
+    },
     async isSameEntry(other) {
       return this.id === other.id;
     },
@@ -215,11 +218,17 @@ test("native selection and explicit copying retain directory identity checks and
     async *values() {
       destinationReads++;
     },
+    async getDirectoryHandle(name, options) {
+      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
+      return { ...destination, name };
+    },
     async getFileHandle(name, options) {
       if (!options?.create) throw new DOMException("Missing", "NotFoundError");
+      assert.equal(this.name.startsWith("파일모아_"), true);
       createdFiles++;
       assert.equal(name, "photo.jpg");
       return {
+        getFile: async () => new Blob([]),
         createWritable: async () => ({
           write: async (bytes) => written.push(bytes),
           close: async () => {},
@@ -404,6 +413,7 @@ test("standard input can choose a destination before and after downloading and c
             throw new DOMException("Missing", "NotFoundError");
           assert.equal(fileName, "photo.jpg");
           return {
+            getFile: async () => new Blob([]),
             createWritable: async () => ({
               write: async (chunk) => bytes.push(chunk),
               close: async () => {},
@@ -474,20 +484,105 @@ test("standard input can choose a destination before and after downloading and c
   }
 });
 
-
 test("source counts and downloads exclude Zone.Identifier sidecars", async () => {
   const h = await setup();
   try {
     const photo = inputFile("source/photo.jpg", "original");
-    await searchInput(h.el, [photo,
-      inputFile("source/photo.jpg.Zone.Identifier", "metadata"),
-      inputFile("source/Zone.Identifier", "metadata"),
-    ], "photo.jpg\nphoto.jpg.Zone.Identifier\nZone.Identifier");
+    await searchInput(
+      h.el,
+      [
+        photo,
+        inputFile("source/photo.jpg.Zone.Identifier", "metadata"),
+        inputFile("source/Zone.Identifier", "metadata"),
+      ],
+      "photo.jpg\nphoto.jpg.Zone.Identifier\nZone.Identifier",
+    );
     assert.match(h.el("source-detail").textContent, /^1/);
     await h.el("copy").fire("click");
-    assert.deepEqual(h.downloads.map((file) => file.name), ["photo.jpg"]);
+    assert.deepEqual(
+      h.downloads.map((file) => file.name),
+      ["photo.jpg"],
+    );
     assert.equal(h.downloads[0].blob, photo);
   } finally {
     h.restore();
   }
 });
+
+for (const failure of ["open", "write", "close", "cancel", "race", "abort"]) {
+  test(`failed copy (${failure}) preserves originals and never deletes output entries`, async () => {
+    const original = inputFile("source/photo.jpg", "original bytes");
+    const existing = new Blob(["existing destination bytes"]);
+    let commits = 0,
+      aborts = 0,
+      attempts = 0;
+    let h;
+    const parent = {
+      kind: "directory",
+      name: "output",
+      removeEntry: () => assert.fail("Must never delete"),
+      getFileHandle: () =>
+        assert.fail("Never open files in the selected parent"),
+      async getDirectoryHandle(name, options) {
+        if (!options?.create)
+          throw new DOMException("Missing", "NotFoundError");
+        return {
+          kind: "directory",
+          name,
+          async *values() {},
+          removeEntry: () => assert.fail("Must never delete partial files"),
+          async getFileHandle(name, options) {
+            if (!options?.create)
+              throw new DOMException("Missing", "NotFoundError");
+            return {
+              getFile: async () =>
+                failure === "race" ? existing : new Blob([]),
+              async createWritable() {
+                attempts++;
+                if (failure === "open")
+                  throw new DOMException("Quota", "QuotaExceededError");
+                return {
+                  async write() {
+                    if (["write", "abort"].includes(failure))
+                      throw new Error("Disk write failed");
+                    if (failure === "cancel")
+                      await h.el("cancel").fire("click");
+                  },
+                  async close() {
+                    if (failure === "close") throw new Error("Commit failed");
+                    commits++;
+                  },
+                  async abort() {
+                    aborts++;
+                    if (failure === "abort") throw new Error("Abort failed");
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+    h = await setup({ showDirectoryPicker: async () => parent });
+    try {
+      await searchInput(h.el, [original], "photo.jpg");
+      await h.el("destination").fire("click");
+      await h.el("copy").fire("click");
+      assert.equal(await original.text(), "original bytes");
+      assert.equal(await existing.text(), "existing destination bytes");
+      assert.equal(commits, 0);
+      assert.equal(
+        h.downloads.length,
+        0,
+        "No automatic fallback after failure",
+      );
+      assert.equal(h.el("copy").disabled, false, "Allow retry after failure");
+      assert.match(h.el("log").textContent, /자동 삭제하지 않습니다/);
+      if (failure === "race") assert.equal(attempts, 0);
+      if (["write", "close", "cancel", "abort"].includes(failure))
+        assert.equal(aborts, 1);
+    } finally {
+      h.restore();
+    }
+  });
+}

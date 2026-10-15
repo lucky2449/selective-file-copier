@@ -1,8 +1,9 @@
+import { openCopyWriter } from "./copy-safety.mjs";
 import {
   assertDistinctDirectories,
   createResultDirectory,
   selectNativeSource,
-} from "./directory-access.mjs?v=result-folder-1";
+} from "./directory-access.mjs?v=source-safety-2";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,
@@ -84,9 +85,7 @@ function refreshSaveOptions() {
   $("destination-reset").hidden = !state.dest;
   $("destination-reset").disabled = state.busy;
   $("save-hint").textContent = state.dest
-    ? state.source
-      ? "선택 파일을 지정한 폴더에 직접 복사합니다. 원본 파일은 변경하지 않습니다."
-      : "선택한 저장 폴더 안에 새 결과 폴더를 만들어 복사합니다. 원본 파일은 변경하지 않습니다."
+    ? "선택한 저장 폴더 안에 새 결과 폴더를 만들어 복사합니다. 원본 파일은 변경하지 않습니다."
     : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
 }
 function updateSummary() {
@@ -233,9 +232,11 @@ $("reference").addEventListener("click", () => $("reference-input").click());
 $("reference-input").addEventListener("change", (event) => {
   if (event.target.files.length) {
     $("items").value = [
-      ...new Set([...event.target.files]
-        .filter((file) => !isExcludedFile(file.name))
-        .map((file) => stem(file.name))),
+      ...new Set(
+        [...event.target.files]
+          .filter((file) => !isExcludedFile(file.name))
+          .map((file) => stem(file.name)),
+      ),
     ]
       .map((name) => `"${name}"`)
       .join("\n");
@@ -491,18 +492,13 @@ async function copyFiles() {
   let success = 0,
     failed = 0;
   try {
-    let dest = state.dest;
-    let outputLabel = dest.name;
-    if (state.source) {
-      await assertDistinctDirectories(state.source, dest);
-    } else {
-      // Standard inputs expose Files, not identity-verifiable directory handles.
-      // Isolate every copy in a fresh child instead of writing into the parent.
-      dest = await createResultDirectory(dest, {
-        cancelled: () => state.cancelled,
-      });
-      outputLabel = `${state.dest.name}/${dest.name}`;
-    }
+    if (state.source) await assertDistinctDirectories(state.source, state.dest);
+    // Every source mode writes only into a new result folder.
+    const dest = await createResultDirectory(state.dest, {
+      cancelled: () => state.cancelled,
+    });
+    if (state.source) await assertDistinctDirectories(state.source, dest);
+    const outputLabel = `${state.dest.name}/${dest.name}`;
     if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
     $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;
     $("copy-output").hidden = false;
@@ -516,13 +512,14 @@ async function copyFiles() {
       if (state.cancelled) break;
       const entry = files[i];
       let writer = null,
-        newName = null,
-        created = false;
+        newName = null;
       try {
         const file = entry.file;
         newName = uniqueName(entry.name, occupied);
         // Refresh collisions against changes made since the initial directory listing.
         while (true) {
+          if (state.cancelled)
+            throw new DOMException("작업 취소", "AbortError");
           try {
             await dest.getFileHandle(newName);
             newName = uniqueName(entry.name, occupied);
@@ -535,11 +532,10 @@ async function copyFiles() {
             throw error;
           }
         }
-        const handle = await dest.getFileHandle(newName, {
-          create: true,
+        writer = await openCopyWriter(dest, newName, {
+          source: state.source,
+          cancelled: () => state.cancelled,
         });
-        created = true;
-        writer = await handle.createWritable();
         const reader = file.stream().getReader();
         let bytes = 0;
         try {
@@ -559,17 +555,14 @@ async function copyFiles() {
           await reader.cancel().catch(() => {});
           reader.releaseLock();
         }
+        if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
         await writer.close();
         success++;
         log(`복사됨: ${entry.name} → ${newName}`);
       } catch (error) {
         if (writer) await writer.abort().catch(() => {});
-        if (created)
-          await dest
-            .removeEntry(newName)
-            .catch((cleanup) =>
-              log(`미완성 파일 정리 실패: ${newName} (${cleanup.message})`),
-            );
+        if (newName)
+          log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
         if (error.name === "AbortError") break;
         failed++;
         log(`복사 실패: ${entry.name} (${error.message})`);

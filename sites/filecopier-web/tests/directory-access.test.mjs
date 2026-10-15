@@ -1,3 +1,4 @@
+import { openCopyWriter } from "../dist/copy-safety.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -14,6 +15,9 @@ function directory(id, name, entries = []) {
     id,
     async isSameEntry(other) {
       return id === other.id;
+    },
+    async resolve() {
+      return null;
     },
     async *values() {
       yield* entries;
@@ -198,4 +202,146 @@ test("result folders never reuse existing folders or files and stop on denied ac
     name: "NotAllowedError",
   });
   await assert.rejects(createResultDirectory(null), /저장 폴더를 다시 선택/);
+});
+
+test("source descendants and unverifiable containment are blocked", async () => {
+  const source = directory("source", "source");
+  const child = directory("child", "child");
+  source.resolve = async () => ["child"];
+  await assert.rejects(
+    assertDistinctDirectories(source, child),
+    /원본 폴더 안/,
+  );
+  delete source.resolve;
+  await assert.rejects(
+    assertDistinctDirectories(source, child),
+    /확인할 수 없어/,
+  );
+  source.resolve = async () => {
+    throw new DOMException("Denied", "NotAllowedError");
+  };
+  await assert.rejects(assertDistinctDirectories(source, child), {
+    name: "NotAllowedError",
+  });
+});
+
+test("a nonempty directory appearing during result creation is never reused or removed", async () => {
+  const existing = directory("existing", "existing", [file("original.jpg")]);
+  const parent = {
+    kind: "directory",
+    async getDirectoryHandle(name, options) {
+      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
+      return existing;
+    },
+    removeEntry: () => assert.fail("Never remove an existing directory"),
+  };
+  await assert.rejects(createResultDirectory(parent), /기존 항목/);
+  const [original] = await readSourceDirectory(existing);
+  assert.equal(await original.file.text(), "data");
+});
+
+function outputTarget() {
+  const state = {
+    size: 0,
+    lastModified: 1,
+    opened: 0,
+    writes: 0,
+    closes: 0,
+    aborts: 0,
+  };
+  const handle = {
+    getFile: async () => ({
+      size: state.size,
+      lastModified: state.lastModified,
+    }),
+    async createWritable(options) {
+      assert.deepEqual(options, { mode: "exclusive" });
+      state.opened++;
+      return {
+        write: async () => {
+          state.writes++;
+        },
+        close: async () => {
+          state.closes++;
+        },
+        abort: async () => {
+          state.aborts++;
+        },
+      };
+    },
+  };
+  const directory = {
+    async getFileHandle(name, options) {
+      assert.deepEqual(options, { create: true });
+      return handle;
+    },
+    removeEntry: () => assert.fail("Never delete an output on failure"),
+  };
+  return { state, handle, directory };
+}
+
+test("writing is refused when a created handle resolves to an original, including an empty original", async () => {
+  const target = outputTarget();
+  const source = { resolve: async () => ["original.jpg"] };
+  await assert.rejects(
+    openCopyWriter(target.directory, "original.jpg", { source }),
+    /원본 폴더 안/,
+  );
+  assert.equal(target.state.opened, 0);
+  source.resolve = async () => {
+    throw new DOMException("Denied", "NotAllowedError");
+  };
+  await assert.rejects(
+    openCopyWriter(target.directory, "photo.jpg", { source }),
+    { name: "NotAllowedError" },
+  );
+  assert.equal(target.state.opened, 0);
+});
+
+test("changes detected after writer creation abort without writes or deletion", async () => {
+  const target = outputTarget();
+  const open = target.handle.createWritable;
+  target.handle.createWritable = async (options) => {
+    const writer = await open(options);
+    target.state.size = 12;
+    return writer;
+  };
+  await assert.rejects(
+    openCopyWriter(target.directory, "photo.jpg"),
+    /외부 변경/,
+  );
+  assert.equal(target.state.writes, 0);
+  assert.equal(target.state.closes, 0);
+  assert.equal(target.state.aborts, 1);
+});
+
+test("external metadata changes and cancellation prevent committing staged bytes", async () => {
+  for (const reason of ["size", "timestamp", "source", "cancel"]) {
+    const target = outputTarget();
+    let cancelled = false,
+      insideSource = false;
+    const writer = await openCopyWriter(target.directory, "photo.jpg", {
+      cancelled: () => cancelled,
+      source: { resolve: async () => (insideSource ? ["photo.jpg"] : null) },
+    });
+    await writer.write(new Uint8Array([1, 2, 3]));
+    if (reason === "size") target.state.size = 3;
+    if (reason === "timestamp") target.state.lastModified++;
+    if (reason === "source") insideSource = true;
+    if (reason === "cancel") cancelled = true;
+    await assert.rejects(writer.close());
+    await writer.abort();
+    assert.equal(target.state.closes, 0);
+    assert.equal(target.state.aborts, 1);
+  }
+});
+
+test("a new unchanged output commits successfully and never needs cleanup deletion", async () => {
+  const target = outputTarget();
+  const writer = await openCopyWriter(target.directory, "photo.jpg");
+  await writer.write(new Uint8Array([1, 2, 3]));
+  await writer.close();
+  assert.equal(target.state.writes, 1);
+  assert.equal(target.state.closes, 1);
+  assert.equal(target.state.aborts, 0);
 });

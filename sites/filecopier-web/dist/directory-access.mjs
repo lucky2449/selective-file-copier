@@ -16,6 +16,12 @@ export async function assertDistinctDirectories(source, destination) {
       "원본 폴더와 저장 폴더가 같습니다. 다른 저장 폴더를 선택하세요.",
     );
   }
+  if (typeof source.resolve !== "function")
+    throw new Error("원본과 저장 위치를 확인할 수 없어 복사를 중단했습니다.");
+  if ((await source.resolve(destination)) !== null)
+    throw new Error(
+      "원본 폴더 안에는 저장할 수 없습니다. 원본 밖의 저장 폴더를 선택하세요.",
+    );
 }
 
 export async function readSourceDirectory(
@@ -63,7 +69,7 @@ export async function selectNativeSource(
   return { files, name: handle.name, handle };
 }
 
-// When the source has no directory handle, only write into a fresh child folder.
+// Always isolate copies in a fresh, empty child folder.
 export async function createResultDirectory(
   parent,
   {
@@ -91,7 +97,18 @@ export async function createResultDirectory(
       if (error.name !== "NotFoundError") throw error;
     }
     check();
-    return parent.getDirectoryHandle(name, { create: true });
+    const result = await parent.getDirectoryHandle(name, { create: true });
+    check();
+    // A directory may have appeared between lookup and creation. Never reuse
+    // a nonempty result, and never delete it as cleanup.
+    for await (const entry of result.values()) {
+      check();
+      throw new Error(
+        "결과 폴더에 기존 항목이 감지되어 복사를 중단했습니다. 다시 시도하세요.",
+      );
+    }
+    check();
+    return result;
   }
   throw new Error("새 결과 폴더 이름을 만들 수 없습니다. 다시 시도하세요.");
 }
