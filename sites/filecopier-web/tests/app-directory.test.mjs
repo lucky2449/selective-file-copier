@@ -1339,3 +1339,77 @@ for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
     }
   });
 }
+
+test("fixed result summary counts unique output pairs, bytes and unresolved requests and follows selection", async () => {
+  const h = await setup();
+  try {
+    await searchInput(
+      h.el,
+      [
+        inputFile("source/A/photo.JPG", "12345678"),
+        inputFile("source/A/photo.CR3", "x".repeat(40)),
+        inputFile("source/B/other.JPG"),
+        inputFile("source/C/other.JPG"),
+      ],
+      "A/photo.JPG\nA/photo.CR3\nmissing\nother",
+    );
+    assert.equal(
+      h.el("summary-selection").textContent,
+      "저장 예정 2개 · 총 48B",
+    );
+    assert.equal(h.el("summary-formats").textContent, "CR3 1개 · JPG 1개");
+    assert.equal(
+      h.el("summary-requests").textContent,
+      "찾지 못함 1건 · 확인 필요 1건",
+    );
+    h.el("select-all").checked = false;
+    await h.el("select-all").fire("change");
+    assert.equal(
+      h.el("summary-selection").textContent,
+      "저장 예정 0개 · 총 0B",
+    );
+    assert.equal(h.el("summary-formats").textContent, "선택한 파일 없음");
+    assert.equal(
+      h.el("summary-requests").textContent,
+      "찾지 못함 1건 · 확인 필요 1건",
+    );
+    const checkbox =
+      h.el("rows").children[0].children[0].children[0].children[0];
+    checkbox.checked = true;
+    await checkbox.fire("change");
+    assert.equal(
+      h.el("summary-selection").textContent,
+      "저장 예정 2개 · 총 48B",
+    );
+    await h.el("reset").fire("click");
+    assert.equal(
+      h.el("summary-selection").textContent,
+      "저장 예정 0개 · 총 0B",
+    );
+    assert.equal(h.el("result-table").hidden, true);
+  } finally {
+    h.restore();
+  }
+});
+
+test("fixed result summary formats MiB sizes and counts zero-byte files without extensions", async () => {
+  const h = await setup();
+  try {
+    await searchInput(
+      h.el,
+      [
+        inputFile("source/photo.JPG", "x".repeat(1024 * 1024)),
+        inputFile("source/README", ""),
+      ],
+      "photo.JPG\nREADME",
+    );
+    assert.equal(
+      h.el("summary-selection").textContent,
+      "저장 예정 2개 · 총 1MB",
+    );
+    assert.match(h.el("summary-formats").textContent, /JPG 1개/);
+    assert.match(h.el("summary-formats").textContent, /확장자 없음 1개/);
+  } finally {
+    h.restore();
+  }
+});

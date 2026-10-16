@@ -121,6 +121,38 @@ function updateSummary() {
   $("stat-found").textContent = resolved;
   $("stat-attention").textContent = state.rows.length - resolved;
   $("selected-count").textContent = `선택한 파일 ${selected.length}개`;
+  const totalBytes = selected.reduce((sum, entry) => sum + entry.file.size, 0);
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const unit =
+    totalBytes > 0
+      ? Math.min(
+          Math.floor(Math.log(totalBytes) / Math.log(1024)),
+          units.length - 1,
+        )
+      : 0;
+  const size = totalBytes / 1024 ** unit;
+  const formattedSize = `${size.toLocaleString("ko-KR", { maximumFractionDigits: unit ? 1 : 0 })}${units[unit]}`;
+  $("summary-selection").textContent =
+    `저장 예정 ${selected.length.toLocaleString("ko-KR")}개 · 총 ${formattedSize}`;
+  const formats = new Map();
+  for (const entry of selected) {
+    const format =
+      extension(entry.name).slice(1).toUpperCase() || "확장자 없음";
+    formats.set(format, (formats.get(format) ?? 0) + 1);
+  }
+  $("summary-formats").textContent =
+    [...formats]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([format, count]) => `${format} ${count.toLocaleString("ko-KR")}개`)
+      .join(" · ") || "선택한 파일 없음";
+  const missing = state.rows.filter(
+    (row) => !row.chosen && !row.candidates.length,
+  ).length;
+  const attention = state.rows.filter(
+    (row) => !row.chosen && row.candidates.length,
+  ).length;
+  $("summary-requests").textContent =
+    `찾지 못함 ${missing.toLocaleString("ko-KR")}건 · 확인 필요 ${attention.toLocaleString("ko-KR")}건`;
   $("copy").disabled = state.busy || !selected.length;
   $("zip").disabled = state.busy || !selected.length;
   $("zip").textContent =
