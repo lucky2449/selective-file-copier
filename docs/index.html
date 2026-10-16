@@ -27,8 +27,8 @@
     <meta name="twitter:image" content="https://lucky2449.github.io/selective-file-copier/social-card-v1.png" />
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
-    <link rel="stylesheet" href="./style.css?v=ext-dropdown-1" />
-    <script type="module" src="./app.mjs?v=ext-check-sync-1"></script>
+    <link rel="stylesheet" href="./style.css?v=ext-partial-color-1" />
+    <script type="module" src="./app.mjs?v=ext-partial-color-1"></script>
   </head>
   <body>
     <header>
@@ -100,7 +100,7 @@
           <details id="extension-menu" class="extension-menu">
             <summary id="extension-summary" aria-label="복사할 파일 확장자 선택">확장자 선택</summary>
             <fieldset id="extension" class="extension-field" aria-labelledby="extension-label">
-              <label class="extension-option"><input id="extension-all" type="checkbox" /><span>모든 파일</span></label>
+              <label class="extension-option"><input id="extension-all" type="checkbox" title="모든 확장자 선택/해제" /><span id="extension-all-label">모든 파일</span></label>
               <div id="extension-options" class="extension-options"></div>
             </fieldset>
           </details>

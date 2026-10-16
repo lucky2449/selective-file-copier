@@ -224,6 +224,10 @@ function updateExtensionLabel() {
   const all = extensions.length > 0 && count === extensions.length;
   $("extension-all").checked = all;
   $("extension-all").indeterminate = count > 0 && !all;
+  $("extension-all-label").textContent =
+    count > 0 && !all
+      ? `일부 선택 (${count}/${extensions.length})`
+      : "모든 파일";
   $("extension-all").disabled = !extensions.length;
   $("extension-summary").textContent = all
     ? "모든 파일"

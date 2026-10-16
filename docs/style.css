@@ -704,3 +704,6 @@ progress::-moz-progress-bar {
 .extension-option { display: flex; align-items: center; gap: 9px; padding: 7px 4px; font-size: 14px; cursor: pointer; }
 .extension-option:hover { background: #ffffff08; }
 .extension-field:disabled .extension-option { opacity: .5; cursor: default; }
+
+#extension-all:indeterminate { accent-color: #f4b860; }
+#extension-all:indeterminate + #extension-all-label { color: #f4b860; font-weight: 600; }
