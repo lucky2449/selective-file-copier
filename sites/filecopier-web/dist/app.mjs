@@ -16,12 +16,12 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs?v=separate-cross-format-1";
+} from "./core.mjs?v=selected-formats-1";
 import {
   buildFormatGroups,
   resolvePhotoPair,
   expandPhotoPairs,
-} from "./photo-pairs.mjs?v=separate-cross-format-1";
+} from "./photo-pairs.mjs?v=selected-formats-1";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
@@ -77,7 +77,6 @@ function setBusy(value) {
     "items",
     "extension",
     "camera-numbers",
-    "cross-format",
     "search",
     "select-all",
   ])
@@ -355,7 +354,6 @@ $("extension-all").addEventListener("change", () => {
   invalidate();
 });
 $("camera-numbers").addEventListener("change", invalidate);
-$("cross-format").addEventListener("change", invalidate);
 $("search").addEventListener("click", async () => {
   if (!state.files.length) {
     toast("원본 폴더를 먼저 선택하세요.");
@@ -383,7 +381,6 @@ $("search").addEventListener("click", async () => {
     state.pairs = buildFormatGroups(state.files, state.extensions);
     const index = buildIndex(state.files, [...state.extensions], {
         cameraNumbers: $("camera-numbers").checked !== false,
-        crossFormat: $("cross-format").checked === true,
       }),
       rows = [];
     for (let i = 0; i < items.length; i++) {
@@ -714,7 +711,6 @@ $("reset").addEventListener("click", () => {
   });
   $("items").value = "";
   $("camera-numbers").checked = true;
-  $("cross-format").checked = false;
   state.pairs = new Map();
   $("copy-output").hidden = true;
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";

@@ -33,17 +33,12 @@ const add = (map, key, file) => {
   if (!map.has(key)) map.set(key, []);
   map.get(key).push(file);
 };
-export function buildIndex(
-  files,
-  filter = "",
-  { cameraNumbers = true, crossFormat = false } = {},
-) {
+export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
   const filters = (Array.isArray(filter) ? filter : filter ? [filter] : []).map(
     (ext) => ext.toLowerCase(),
   );
   const index = {
     targetExtension: filters.length === 1 ? filters[0] : "",
-    crossFormat: crossFormat === true,
     names: new Map(),
     stems: new Map(),
     ids: new Map(),
@@ -127,16 +122,12 @@ export function matchItem(index, item) {
   let requiresConfirmation = false;
   const candidateReasons = new Map();
   const name = normalized.split("/").at(-1);
+  // The input identifies a photograph by stem/path. Only selected formats
+  // decide which extensions may be returned, even if the input names a JPG.
   if (normalized.includes("/")) {
-    candidates = pathMatches(index, normalized);
-    if (!candidates.length && (!extension(name) || index.crossFormat))
-      candidates = pathMatches(index, normalized, true);
+    candidates = pathMatches(index, normalized, true);
   } else {
-    candidates = index.names.get(name) ?? [];
-    // Selected formats only restrict the indexed files. Cross-format fallback
-    // requires its own explicit option, regardless of how formats were selected.
-    if (!candidates.length && (!extension(name) || index.crossFormat))
-      candidates = index.stems.get(normalize(stem(name))) ?? [];
+    candidates = index.stems.get(normalize(stem(name))) ?? [];
   }
   if (!candidates.length && /^\d+$/.test(item)) {
     const id = numericId(item);

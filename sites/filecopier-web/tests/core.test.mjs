@@ -53,7 +53,7 @@ test("match case-insensitive paths and names without picking ambiguous files", (
 });
 
 test("extension filters also apply to JPG-to-RAW and path searches", () => {
-  const rawIndex = buildIndex(files, ".cr3", { crossFormat: true });
+  const rawIndex = buildIndex(files, ".cr3");
   assert.equal(matchItem(rawIndex, "IMG_001.jpg").chosen.name, "IMG_001.cr3");
   assert.equal(
     matchItem(rawIndex, "root/IMG_001.jpg").chosen.name,
@@ -189,7 +189,7 @@ test("exclude Zone.Identifier sidecars from matching and every output selection"
   );
 });
 
-test("an explicit extension never falls back to another format in all-files mode", () => {
+test("input extensions do not restrict filenames or paths when all formats are selected", () => {
   for (const ext of ["xmp", "mp4", "cr3", "jpeg"]) {
     const file = { name: `IMG_0001.${ext}`, path: `root/IMG_0001.${ext}` };
     const index = buildIndex([file]);
@@ -199,15 +199,19 @@ test("an explicit extension never falls back to another format in all-files mode
       "C:\\root\\IMG_0001.JPG",
     ]) {
       const row = matchItem(index, item);
-      assert.deepEqual(row.candidates, [], `${item} must not match ${ext}`);
-      assert.equal(row.chosen, null);
-      assert.equal(row.selected, false);
-      assert.deepEqual(selectedFiles([row]), []);
+      assert.deepEqual(
+        row.candidates,
+        [file],
+        `${item} should find selected ${ext}`,
+      );
+      assert.equal(row.chosen, file);
+      assert.equal(row.selected, true);
+      assert.deepEqual(selectedFiles([row]), [file]);
     }
   }
 });
 
-test("exact extensions remain case insensitive and extensionless searches retain ambiguity", () => {
+test("stem matching is case insensitive and keeps cross-folder or cross-format ambiguity", () => {
   const files = ["IMG_0001.JPG", "IMG_0001.XMP", "IMG_0001.MP4"].map(
     (name) => ({
       name,
@@ -215,24 +219,21 @@ test("exact extensions remain case insensitive and extensionless searches retain
     }),
   );
   const index = buildIndex(files);
-  assert.equal(matchItem(index, "img_0001.jpg").chosen, files[0]);
+  assert.deepEqual(matchItem(index, "img_0001.jpg").candidates, files);
   assert.equal(matchItem(index, "IMG_0001").candidates.length, 3);
   assert.equal(matchItem(index, "IMG_0001").chosen, null);
   assert.equal(matchItem(buildIndex([files[0]]), "IMG_0001").chosen, files[0]);
 });
 
-test("cross-format matching requires an independent explicit option", () => {
+test("selected formats alone determine matching extensions", () => {
   const raw = { name: "IMG_0001.CR3", path: "root/IMG_0001.CR3" };
   const video = { name: "IMG_0001.MP4", path: "root/IMG_0001.MP4" };
   assert.deepEqual(
     matchItem(buildIndex([raw, video]), "IMG_0001.JPG").candidates,
-    [],
+    [raw, video],
   );
   assert.equal(
-    matchItem(
-      buildIndex([raw, video], ".CR3", { crossFormat: true }),
-      "IMG_0001.JPG",
-    ).chosen,
+    matchItem(buildIndex([raw, video], ".CR3"), "IMG_0001.JPG").chosen,
     raw,
   );
   assert.equal(
@@ -248,7 +249,7 @@ test("multi-extension index restricts typed names, numeric candidates and inferr
     "a/IMG_0001.NEF",
     "a/IMG_0001.MP4",
   ].map((path) => ({ path, name: path.split("/").at(-1) }));
-  const index = buildIndex(files, [".JPG", ".cr3"], { crossFormat: true });
+  const index = buildIndex(files, [".JPG", ".cr3"]);
   assert.deepEqual(matchItem(index, "1").candidates, files.slice(0, 2));
   assert.ok(
     matchItem(index, "IMG_0001.NEF").candidates.every((f) =>
@@ -285,13 +286,13 @@ test("path requests never fall back to basenames or shorter subfolder suffixes",
   assert.equal(matchItem(idx, "B/photo.jpg").chosen, entries[0]);
   assert.equal(matchItem(idx, "A/deep/photo.jpg").chosen, entries[1]);
 });
-test("cross-format path matching preserves folders and explicit extensions without a filter stay strict", () => {
+test("matching different extensions preserves the requested folder", () => {
   const entries = [
     "root/A/photo.CR3",
     "root/B/photo.CR3",
     "root/B/onlyB.CR3",
   ].map((path) => ({ path, name: path.split("/").at(-1) }));
-  const raw = buildIndex(entries, [".cr3"], { crossFormat: true });
+  const raw = buildIndex(entries, [".cr3"]);
   for (const query of [
     "A/photo.jpg",
     "root/A/photo.jpg",
@@ -303,10 +304,9 @@ test("cross-format path matching preserves folders and explicit extensions witho
   }
   assert.deepEqual(matchItem(raw, "A/onlyB.jpg").candidates, []);
   assert.deepEqual(matchItem(raw, "missing/photo.jpg").candidates, []);
-  assert.deepEqual(
-    matchItem(buildIndex(entries), "A/photo.jpg").candidates,
-    [],
-  );
+  assert.deepEqual(matchItem(buildIndex(entries), "A/photo.jpg").candidates, [
+    entries[0],
+  ]);
   assert.equal(matchItem(raw, "photo.jpg").candidates.length, 2);
 });
 test("absolute paths require one unambiguous selected root anchor", () => {
@@ -324,37 +324,38 @@ test("absolute paths require one unambiguous selected root anchor", () => {
   );
 });
 
-test("format filtering never enables fallback implicitly and empty selected formats match nothing", () => {
+test("selected formats control every typed extension and an empty selection matches nothing", () => {
   const entries = [
     "root/A/photo.CR3",
     "root/A/photo.MP4",
     "root/B/photo.NEF",
   ].map((path) => ({ path, name: path.split("/").at(-1) }));
-  for (const formats of [".cr3", [".cr3"], [".cr3", ".mp4", ".nef"]]) {
-    for (const query of ["photo.JPG", "A/photo.JPG"]) {
-      assert.deepEqual(
-        matchItem(buildIndex(entries, formats), query).candidates,
-        [],
-      );
-    }
+  for (const inputExt of ["JPG", "NEF", "PNG"]) {
+    assert.equal(
+      matchItem(buildIndex(entries, [".cr3"]), `A/photo.${inputExt}`).chosen,
+      entries[0],
+    );
+    assert.deepEqual(
+      matchItem(buildIndex(entries, [".nef"]), `A/photo.${inputExt}`)
+        .candidates,
+      [],
+    );
   }
+  assert.deepEqual(
+    matchItem(buildIndex(entries, []), "photo.JPG").candidates,
+    [],
+  );
+});
+test("an exact input extension must not hide selected same-stem files in another folder", () => {
+  const entries = ["root/A/photo.CR3", "root/B/photo.JPG"].map((path) => ({
+    path,
+    name: path.split("/").at(-1),
+  }));
+  const row = matchItem(buildIndex(entries, [".jpg", ".cr3"]), "photo.JPG");
+  assert.deepEqual(row.candidates, entries);
+  assert.equal(row.chosen, null);
   assert.equal(
-    matchItem(
-      buildIndex(entries, [".cr3"], { crossFormat: true }),
-      "A/photo.JPG",
-    ).chosen,
+    matchItem(buildIndex(entries, [".jpg", ".cr3"]), "A/photo.JPG").chosen,
     entries[0],
-  );
-  assert.deepEqual(
-    matchItem(
-      buildIndex(entries, [".nef"], { crossFormat: true }),
-      "A/photo.JPG",
-    ).candidates,
-    [],
-  );
-  assert.deepEqual(
-    matchItem(buildIndex(entries, [], { crossFormat: true }), "photo")
-      .candidates,
-    [],
   );
 });

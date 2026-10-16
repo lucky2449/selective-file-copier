@@ -82,7 +82,7 @@ test("merge inferred candidates with ordinary matches instead of silently prefer
   );
 });
 
-test("filters and exact extensions still constrain inferred camera searches", () => {
+test("selected formats constrain inferred camera searches while input extensions do not", () => {
   const raw = entry("P1000001.RW2"),
     jpeg = entry("P1000001.JPG");
   const row = matchItem(buildIndex([raw, jpeg], ".rw2"), "1");
@@ -90,11 +90,10 @@ test("filters and exact extensions still constrain inferred camera searches", ()
   assert.equal(row.chosen, null);
   assert.equal(
     matchItem(buildIndex([raw]), "P1000001.JPG").candidates.length,
-    0,
+    1,
   );
   assert.equal(
-    matchItem(buildIndex([raw], ".rw2", { crossFormat: true }), "P1000001.JPG")
-      .chosen,
+    matchItem(buildIndex([raw], ".rw2"), "P1000001.JPG").chosen,
     raw,
   );
 });

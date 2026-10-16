@@ -1,4 +1,4 @@
-import { extension, normalize, stem } from "./core.mjs?v=separate-cross-format-1";
+import { extension, normalize, stem } from "./core.mjs?v=selected-formats-1";
 
 const JPG = new Set([".jpg", ".jpeg", ".jpe"]);
 const RAW = new Set([
