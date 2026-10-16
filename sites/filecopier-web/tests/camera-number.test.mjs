@@ -93,7 +93,8 @@ test("filters and exact extensions still constrain inferred camera searches", ()
     0,
   );
   assert.equal(
-    matchItem(buildIndex([raw], ".rw2"), "P1000001.JPG").chosen,
+    matchItem(buildIndex([raw], ".rw2", { crossFormat: true }), "P1000001.JPG")
+      .chosen,
     raw,
   );
 });

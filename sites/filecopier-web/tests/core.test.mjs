@@ -53,7 +53,7 @@ test("match case-insensitive paths and names without picking ambiguous files", (
 });
 
 test("extension filters also apply to JPG-to-RAW and path searches", () => {
-  const rawIndex = buildIndex(files, ".cr3");
+  const rawIndex = buildIndex(files, ".cr3", { crossFormat: true });
   assert.equal(matchItem(rawIndex, "IMG_001.jpg").chosen.name, "IMG_001.cr3");
   assert.equal(
     matchItem(rawIndex, "root/IMG_001.jpg").chosen.name,
@@ -221,7 +221,7 @@ test("exact extensions remain case insensitive and extensionless searches retain
   assert.equal(matchItem(buildIndex([files[0]]), "IMG_0001").chosen, files[0]);
 });
 
-test("cross-format matching requires an explicit target extension filter", () => {
+test("cross-format matching requires an independent explicit option", () => {
   const raw = { name: "IMG_0001.CR3", path: "root/IMG_0001.CR3" };
   const video = { name: "IMG_0001.MP4", path: "root/IMG_0001.MP4" };
   assert.deepEqual(
@@ -229,7 +229,10 @@ test("cross-format matching requires an explicit target extension filter", () =>
     [],
   );
   assert.equal(
-    matchItem(buildIndex([raw, video], ".CR3"), "IMG_0001.JPG").chosen,
+    matchItem(
+      buildIndex([raw, video], ".CR3", { crossFormat: true }),
+      "IMG_0001.JPG",
+    ).chosen,
     raw,
   );
   assert.equal(
@@ -245,7 +248,7 @@ test("multi-extension index restricts typed names, numeric candidates and inferr
     "a/IMG_0001.NEF",
     "a/IMG_0001.MP4",
   ].map((path) => ({ path, name: path.split("/").at(-1) }));
-  const index = buildIndex(files, [".JPG", ".cr3"]);
+  const index = buildIndex(files, [".JPG", ".cr3"], { crossFormat: true });
   assert.deepEqual(matchItem(index, "1").candidates, files.slice(0, 2));
   assert.ok(
     matchItem(index, "IMG_0001.NEF").candidates.every((f) =>
@@ -288,7 +291,7 @@ test("cross-format path matching preserves folders and explicit extensions witho
     "root/B/photo.CR3",
     "root/B/onlyB.CR3",
   ].map((path) => ({ path, name: path.split("/").at(-1) }));
-  const raw = buildIndex(entries, [".cr3"]);
+  const raw = buildIndex(entries, [".cr3"], { crossFormat: true });
   for (const query of [
     "A/photo.jpg",
     "root/A/photo.jpg",
@@ -317,6 +320,41 @@ test("absolute paths require one unambiguous selected root anchor", () => {
   );
   assert.deepEqual(
     matchItem(idx, "C:\\elsewhere\\A\\photo.JPG").candidates,
+    [],
+  );
+});
+
+test("format filtering never enables fallback implicitly and empty selected formats match nothing", () => {
+  const entries = [
+    "root/A/photo.CR3",
+    "root/A/photo.MP4",
+    "root/B/photo.NEF",
+  ].map((path) => ({ path, name: path.split("/").at(-1) }));
+  for (const formats of [".cr3", [".cr3"], [".cr3", ".mp4", ".nef"]]) {
+    for (const query of ["photo.JPG", "A/photo.JPG"]) {
+      assert.deepEqual(
+        matchItem(buildIndex(entries, formats), query).candidates,
+        [],
+      );
+    }
+  }
+  assert.equal(
+    matchItem(
+      buildIndex(entries, [".cr3"], { crossFormat: true }),
+      "A/photo.JPG",
+    ).chosen,
+    entries[0],
+  );
+  assert.deepEqual(
+    matchItem(
+      buildIndex(entries, [".nef"], { crossFormat: true }),
+      "A/photo.JPG",
+    ).candidates,
+    [],
+  );
+  assert.deepEqual(
+    matchItem(buildIndex(entries, [], { crossFormat: true }), "photo")
+      .candidates,
     [],
   );
 });

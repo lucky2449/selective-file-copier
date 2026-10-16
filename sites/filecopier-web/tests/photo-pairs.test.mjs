@@ -95,7 +95,10 @@ test("explicit extension filter selects base file and pair option adds its compa
   const files = ["a/IMG_0001.jpg", "a/IMG_0001.cr3", "b/IMG_0001.nef"].map(
     file,
   );
-  const row = matchItem(buildIndex(files, ".cr3"), "IMG_0001.jpg");
+  const row = matchItem(
+    buildIndex(files, ".cr3", { crossFormat: true }),
+    "IMG_0001.jpg",
+  );
   assert.deepEqual(selectedFiles([row]), [files[1]]);
   assert.deepEqual(
     new Set(expandPhotoPairs(selectedFiles([row]), buildPhotoPairs(files))),

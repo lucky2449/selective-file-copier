@@ -16,12 +16,12 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs?v=strict-path-1";
+} from "./core.mjs?v=separate-cross-format-1";
 import {
   buildFormatGroups,
   resolvePhotoPair,
   expandPhotoPairs,
-} from "./photo-pairs.mjs?v=strict-path-1";
+} from "./photo-pairs.mjs?v=separate-cross-format-1";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
@@ -77,6 +77,7 @@ function setBusy(value) {
     "items",
     "extension",
     "camera-numbers",
+    "cross-format",
     "search",
     "select-all",
   ])
@@ -213,8 +214,7 @@ function availableExtensions() {
 }
 function updateExtensionLabel() {
   const extensions = availableExtensions();
-  const count =
-    state.extensions === null ? extensions.length : state.extensions.size;
+  const count = state.extensions.size;
   const all = extensions.length > 0 && count === extensions.length;
   $("extension-all").checked = all;
   $("extension-all").indeterminate = count > 0 && !all;
@@ -241,10 +241,8 @@ function renderExtensions() {
     const input = node("input");
     input.type = "checkbox";
     input.value = ext;
-    input.checked = state.extensions === null || state.extensions.has(ext);
+    input.checked = state.extensions.has(ext);
     input.addEventListener("change", () => {
-      if (state.extensions === null)
-        state.extensions = new Set(availableExtensions());
       if (input.checked) state.extensions.add(ext);
       else state.extensions.delete(ext);
       updateExtensionLabel();
@@ -350,12 +348,14 @@ $("extension-summary").addEventListener("click", (event) => {
   if (state.busy) event.preventDefault();
 });
 $("extension-all").addEventListener("change", () => {
-  state.extensions =
-    $("extension-all").checked && state.files.length ? null : new Set();
+  state.extensions = $("extension-all").checked
+    ? new Set(availableExtensions())
+    : new Set();
   renderExtensions();
   invalidate();
 });
 $("camera-numbers").addEventListener("change", invalidate);
+$("cross-format").addEventListener("change", invalidate);
 $("search").addEventListener("click", async () => {
   if (!state.files.length) {
     toast("원본 폴더를 먼저 선택하세요.");
@@ -370,7 +370,7 @@ $("search").addEventListener("click", async () => {
     toast("한 번에 최대 20,000개 항목까지 검색할 수 있습니다.");
     return;
   }
-  if (state.extensions?.size === 0) {
+  if (state.extensions.size === 0) {
     toast("복사할 파일 확장자를 하나 이상 체크하세요.");
     return;
   }
@@ -380,17 +380,11 @@ $("search").addEventListener("click", async () => {
   progress(0, "파일 검색 중...");
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
-    state.pairs = buildFormatGroups(
-      state.files,
-      state.extensions ?? new Set(availableExtensions()),
-    );
-    const index = buildIndex(
-        state.files,
-        state.extensions === null ? "" : [...state.extensions],
-        {
-          cameraNumbers: $("camera-numbers").checked !== false,
-        },
-      ),
+    state.pairs = buildFormatGroups(state.files, state.extensions);
+    const index = buildIndex(state.files, [...state.extensions], {
+        cameraNumbers: $("camera-numbers").checked !== false,
+        crossFormat: $("cross-format").checked === true,
+      }),
       rows = [];
     for (let i = 0; i < items.length; i++) {
       if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
@@ -720,6 +714,7 @@ $("reset").addEventListener("click", () => {
   });
   $("items").value = "";
   $("camera-numbers").checked = true;
+  $("cross-format").checked = false;
   state.pairs = new Map();
   $("copy-output").hidden = true;
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";

@@ -33,13 +33,17 @@ const add = (map, key, file) => {
   if (!map.has(key)) map.set(key, []);
   map.get(key).push(file);
 };
-export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
+export function buildIndex(
+  files,
+  filter = "",
+  { cameraNumbers = true, crossFormat = false } = {},
+) {
   const filters = (Array.isArray(filter) ? filter : filter ? [filter] : []).map(
     (ext) => ext.toLowerCase(),
   );
   const index = {
     targetExtension: filters.length === 1 ? filters[0] : "",
-    hasExtensionFilter: filters.length > 0,
+    crossFormat: crossFormat === true,
     names: new Map(),
     stems: new Map(),
     ids: new Map(),
@@ -50,7 +54,11 @@ export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
   };
   for (const file of files) {
     if (isExcludedFile(file.name)) continue;
-    if (filters.length && !filters.includes(extension(file.name))) continue;
+    if (
+      (Array.isArray(filter) || filter) &&
+      !filters.includes(extension(file.name))
+    )
+      continue;
     add(index.names, normalize(file.name), file);
     add(index.stems, normalize(stem(file.name)), file);
     const path = normalize(file.path);
@@ -121,13 +129,13 @@ export function matchItem(index, item) {
   const name = normalized.split("/").at(-1);
   if (normalized.includes("/")) {
     candidates = pathMatches(index, normalized);
-    if (!candidates.length && (!extension(name) || index.hasExtensionFilter))
+    if (!candidates.length && (!extension(name) || index.crossFormat))
       candidates = pathMatches(index, normalized, true);
   } else {
     candidates = index.names.get(name) ?? [];
-    // Filename-only queries may search every folder. A selected format allows
-    // cross-format lookup, while unfiltered explicit extensions remain exact.
-    if (!candidates.length && (!extension(name) || index.hasExtensionFilter))
+    // Selected formats only restrict the indexed files. Cross-format fallback
+    // requires its own explicit option, regardless of how formats were selected.
+    if (!candidates.length && (!extension(name) || index.crossFormat))
       candidates = index.stems.get(normalize(stem(name))) ?? [];
   }
   if (!candidates.length && /^\d+$/.test(item)) {
