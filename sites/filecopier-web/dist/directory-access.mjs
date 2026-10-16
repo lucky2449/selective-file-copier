@@ -69,14 +69,20 @@ export async function selectNativeSource(
   return { files, name: handle.name, handle };
 }
 
+// Use the device's calendar date, not the UTC date returned by toISOString().
+export function makeResultDirectoryName(date = new Date()) {
+  const day = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+  return `파일모아_${day}_${crypto.randomUUID()}`;
+}
+
 // Always isolate copies in a fresh, empty child folder.
 export async function createResultDirectory(
   parent,
-  {
-    cancelled = () => false,
-    makeName = () =>
-      `파일모아_${new Date().toISOString().slice(0, 10)}_${crypto.randomUUID()}`,
-  } = {},
+  { cancelled = () => false, makeName = makeResultDirectoryName } = {},
 ) {
   if (
     parent?.kind !== "directory" ||

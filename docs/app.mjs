@@ -5,7 +5,7 @@ import {
   assertDistinctDirectories,
   createResultDirectory,
   selectNativeSource,
-} from "./directory-access.mjs?v=source-safety-2";
+} from "./directory-access.mjs?v=local-date-1";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,

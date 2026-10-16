@@ -345,3 +345,43 @@ test("a new unchanged output commits successfully and never needs cleanup deleti
   assert.equal(target.state.closes, 1);
   assert.equal(target.state.aborts, 0);
 });
+
+test("result folder dates follow the device timezone at midnight and year rollover, preserving unique names", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const moduleUrl = new URL("../dist/directory-access.mjs", import.meta.url)
+    .href;
+  const instants = [
+    "2026-10-15T14:59:59Z",
+    "2026-10-15T15:00:00Z",
+    "2026-12-31T15:00:00Z",
+    "2026-10-16T00:30:00Z",
+  ];
+  for (const [timezone, expected] of [
+    ["Asia/Seoul", ["2026-10-15", "2026-10-16", "2027-01-01", "2026-10-16"]],
+    ["UTC", ["2026-10-15", "2026-10-15", "2026-12-31", "2026-10-16"]],
+    [
+      "America/Los_Angeles",
+      ["2026-10-15", "2026-10-15", "2026-12-31", "2026-10-15"],
+    ],
+  ]) {
+    const code = `import {makeResultDirectoryName} from ${JSON.stringify(moduleUrl)};
+      console.log(JSON.stringify(${JSON.stringify(instants)}.map(value => [makeResultDirectoryName(new Date(value)), makeResultDirectoryName(new Date(value))])));`;
+    const pairs = JSON.parse(
+      execFileSync(process.execPath, ["--input-type=module", "-e", code], {
+        encoding: "utf8",
+        env: { ...process.env, TZ: timezone },
+      }),
+    );
+    pairs.forEach(([first, second], i) => {
+      assert.ok(
+        first.startsWith(`파일모아_${expected[i]}_`),
+        `${timezone}: ${first}`,
+      );
+      assert.match(
+        first,
+        /_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+      assert.notEqual(first, second);
+    });
+  }
+});
