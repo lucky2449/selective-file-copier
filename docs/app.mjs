@@ -1,5 +1,6 @@
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
+import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { openCopyWriter } from "./copy-safety.mjs";
 import {
   assertDistinctDirectories,
@@ -40,6 +41,7 @@ const state = {
   dest: null,
   busy: false,
   cancelled: false,
+  copyAbort: null,
 };
 let toastTimer;
 function log(message) {
@@ -589,95 +591,122 @@ async function copyFiles() {
   }
   state.cancelled = false;
   setBusy(true);
+  const controller = new AbortController();
+  state.copyAbort = controller;
+  $("copy-output").hidden = true;
   progress(0, "저장 폴더 확인 중...");
   let success = 0,
     failed = 0;
   try {
-    if (state.source) await assertDistinctDirectories(state.source, state.dest);
-    // Every source mode writes only into a new result folder.
-    const dest = await createResultDirectory(state.dest, {
-      cancelled: () => state.cancelled,
-    });
-    if (state.source) await assertDistinctDirectories(state.source, dest);
-    const outputLabel = `${state.dest.name}/${dest.name}`;
-    if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
-    $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;
-    $("copy-output").hidden = false;
-    log(`저장 위치: ${outputLabel}`);
-    const occupied = new Set();
-    for await (const entry of dest.values()) {
-      if (state.cancelled) break;
-      occupied.add(normalize(entry.name));
-    }
-    for (let i = 0; i < files.length; i++) {
-      if (state.cancelled) break;
-      const entry = files[i];
-      let writer = null,
-        newName = null;
-      try {
-        const file = entry.file;
-        newName = uniqueName(entry.name, occupied);
-        // Refresh collisions against changes made since the initial directory listing.
-        while (true) {
-          if (state.cancelled)
-            throw new DOMException("작업 취소", "AbortError");
-          try {
-            await dest.getFileHandle(newName);
-            newName = uniqueName(entry.name, occupied);
-          } catch (error) {
-            if (error.name === "NotFoundError") break;
-            if (error.name === "TypeMismatchError") {
-              newName = uniqueName(entry.name, occupied);
-              continue;
-            }
-            throw error;
-          }
-        }
-        writer = await openCopyWriter(dest, newName, {
-          source: state.source,
+    await withCopyLock(
+      async () => {
+        if (state.source)
+          await assertDistinctDirectories(state.source, state.dest);
+        // Every source mode writes only into a new result folder.
+        const dest = await createResultDirectory(state.dest, {
           cancelled: () => state.cancelled,
         });
-        const reader = file.stream().getReader();
-        let bytes = 0;
-        try {
-          while (true) {
+        if (state.source) await assertDistinctDirectories(state.source, dest);
+        const outputLabel = `${state.dest.name}/${dest.name}`;
+        if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
+        $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;
+        $("copy-output").hidden = false;
+        log(`저장 위치: ${outputLabel}`);
+        const occupied = new Set();
+        for await (const entry of dest.values()) {
+          if (state.cancelled) break;
+          occupied.add(normalize(entry.name));
+        }
+        for (let i = 0; i < files.length; i++) {
+          if (state.cancelled) break;
+          const entry = files[i];
+          let writer = null,
+            newName = null;
+          try {
+            const file = entry.file;
+            newName = uniqueName(entry.name, occupied);
+            // Refresh collisions against changes made since the initial directory listing.
+            while (true) {
+              if (state.cancelled)
+                throw new DOMException("작업 취소", "AbortError");
+              try {
+                await dest.getFileHandle(newName);
+                newName = uniqueName(entry.name, occupied);
+              } catch (error) {
+                if (error.name === "NotFoundError") break;
+                if (error.name === "TypeMismatchError") {
+                  newName = uniqueName(entry.name, occupied);
+                  continue;
+                }
+                throw error;
+              }
+            }
+            writer = await openCopyWriter(dest, newName, {
+              source: state.source,
+              cancelled: () => state.cancelled,
+            });
+            const reader = file.stream().getReader();
+            let bytes = 0;
+            try {
+              while (true) {
+                if (state.cancelled)
+                  throw new DOMException("작업 취소", "AbortError");
+                const { done, value } = await reader.read();
+                if (done) break;
+                await writer.write(value);
+                bytes += value.byteLength;
+                progress(
+                  ((i + (file.size ? bytes / file.size : 1)) / files.length) *
+                    100,
+                  `복사 중 · ${i + 1} / ${files.length}개 · ${entry.name}`,
+                );
+              }
+            } finally {
+              await reader.cancel().catch(() => {});
+              reader.releaseLock();
+            }
             if (state.cancelled)
               throw new DOMException("작업 취소", "AbortError");
-            const { done, value } = await reader.read();
-            if (done) break;
-            await writer.write(value);
-            bytes += value.byteLength;
-            progress(
-              ((i + (file.size ? bytes / file.size : 1)) / files.length) * 100,
-              `복사 중 · ${i + 1} / ${files.length}개 · ${entry.name}`,
-            );
+            await writer.close();
+            success++;
+            log(`복사됨: ${entry.name} → ${newName}`);
+          } catch (error) {
+            if (writer) await writer.abort().catch(() => {});
+            if (newName)
+              log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
+            if (error.name === "AbortError") break;
+            failed++;
+            log(`복사 실패: ${entry.name} (${error.message})`);
           }
-        } finally {
-          await reader.cancel().catch(() => {});
-          reader.releaseLock();
+          progress(
+            ((i + 1) / files.length) * 100,
+            `처리 중 · ${i + 1} / ${files.length}개`,
+          );
         }
-        if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
-        await writer.close();
-        success++;
-        log(`복사됨: ${entry.name} → ${newName}`);
-      } catch (error) {
-        if (writer) await writer.abort().catch(() => {});
-        if (newName)
-          log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
-        if (error.name === "AbortError") break;
-        failed++;
-        log(`복사 실패: ${entry.name} (${error.message})`);
-      }
-      progress(
-        ((i + 1) / files.length) * 100,
-        `처리 중 · ${i + 1} / ${files.length}개`,
-      );
-    }
-    const remaining = files.length - success - failed;
-    const summary = `${state.cancelled ? "작업 취소" : "복사 완료"} · 성공 ${success}개 / 실패 ${failed}개 / 미처리 ${remaining}개`;
-    progress(((success + failed) / files.length) * 100, summary);
-    log(summary);
-    toast(summary);
+        const remaining = files.length - success - failed;
+        const summary = `${state.cancelled ? "작업 취소" : "복사 완료"} · 성공 ${success}개 / 실패 ${failed}개 / 미처리 ${remaining}개`;
+        progress(((success + failed) / files.length) * 100, summary);
+        log(summary);
+        toast(summary);
+      },
+      {
+        locks: window.navigator?.locks,
+        signal: controller.signal,
+        onWaiting: () => {
+          progress(
+            0,
+            "폴더 복사 순서 대기 중 · 다른 탭의 복사가 끝나면 시작합니다",
+          );
+          log(
+            "폴더 복사 잠금을 요청했습니다. 다른 탭에서 복사 중이면 순서를 기다립니다.",
+          );
+        },
+        onAcquired: () => {
+          progress(0, "저장 폴더 확인 중...");
+          log("폴더 복사 잠금을 확보했습니다.");
+        },
+      },
+    );
   } catch (error) {
     if (error.name === "AbortError") {
       log("저장 위치 선택 또는 복사를 취소했습니다.");
@@ -694,6 +723,7 @@ async function copyFiles() {
     } else report(error);
   } finally {
     // One summary per copy operation; GA4 user metrics deduplicate visitors.
+    state.copyAbort = null;
     analytics.recordCopyResult(success, failed);
     setBusy(false);
   }
@@ -702,6 +732,7 @@ $("copy").addEventListener("click", copyFiles);
 $("zip").addEventListener("click", () => exportZip(false));
 $("cancel").addEventListener("click", () => {
   state.cancelled = true;
+  state.copyAbort?.abort();
   $("progress-label").textContent = "현재 처리를 정리하고 취소합니다...";
 });
 $("reset").addEventListener("click", () => {

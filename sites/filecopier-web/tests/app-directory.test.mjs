@@ -85,6 +85,17 @@ async function setup(window = {}, onDownload = () => {}) {
     body: new Element(),
     head: new Element(),
   };
+  // App fixtures model one successful lock holder; shared scheduling is tested separately.
+  if (!Object.hasOwn(window, "navigator"))
+    window.navigator = {
+      locks: {
+        async request(name, { signal }, task) {
+          if (signal?.aborted)
+            throw new DOMException("Cancelled", "AbortError");
+          return task({ name, mode: "exclusive" });
+        },
+      },
+    };
   globalThis.window = window;
   globalThis.Option = class {
     constructor(text, value) {
@@ -1184,3 +1195,65 @@ test("hide same-photo format choice but retain cross-folder and inferred confirm
     h.restore();
   }
 });
+
+for (const scenario of ["cancel-waiting", "unsupported"]) {
+  test(`folder copy ${scenario} makes no output folder and keeps ordinary downloads usable`, async () => {
+    let requested = 0,
+      created = 0,
+      signal;
+    const locks =
+      scenario === "unsupported"
+        ? null
+        : {
+            request(name, options) {
+              requested++;
+              signal = options.signal;
+              return new Promise((resolve, reject) =>
+                options.signal.addEventListener(
+                  "abort",
+                  () => reject(new DOMException("Cancelled", "AbortError")),
+                  { once: true },
+                ),
+              );
+            },
+          };
+    const h = await setup({
+      navigator: { locks },
+      showDirectoryPicker: async () => ({
+        kind: "directory",
+        name: "output",
+        async getDirectoryHandle() {
+          created++;
+          assert.fail("Must not create folders without lock");
+        },
+      }),
+    });
+    try {
+      await searchInput(
+        h.el,
+        [inputFile("source/photo.jpg", "original")],
+        "photo.jpg",
+      );
+      await h.el("destination").fire("click");
+      const pending = h.el("copy").fire("click");
+      if (scenario === "cancel-waiting") {
+        assert.equal(requested, 1);
+        assert.equal(h.el("source").disabled, true);
+        assert.match(h.el("progress-label").textContent, /대기/);
+        await h.el("cancel").fire("click");
+        assert.equal(signal.aborted, true);
+      }
+      await pending;
+      assert.equal(created, 0);
+      assert.equal(h.el("source").disabled, false);
+      if (scenario === "unsupported")
+        assert.match(h.el("toast").textContent, /잠금/);
+      await h.el("destination-reset").fire("click");
+      await h.el("copy").fire("click");
+      assert.equal(h.downloads.length, 1);
+      assert.equal(await h.downloads[0].blob.text(), "original");
+    } finally {
+      h.restore();
+    }
+  });
+}
