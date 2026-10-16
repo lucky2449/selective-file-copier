@@ -759,3 +759,101 @@ test("an inferred single candidate cannot be downloaded until explicitly confirm
     h.restore();
   }
 });
+
+test("RAW + JPG opt-in previews and downloads companions once; disabling returns to strict extension", async () => {
+  const h = await setup();
+  const { el, downloads } = h;
+  try {
+    const jpg = inputFile("source/a/IMG_0001.JPG", "jpeg-original");
+    const raw = inputFile("source/a/IMG_0001.CR3", "raw-original");
+    const other = inputFile("source/b/IMG_0001.CR3", "other-folder");
+    el("raw-jpg").checked = true;
+    await searchInput(el, [jpg, raw, other], "a/IMG_0001.JPG");
+    assert.equal(el("selected-count").textContent, "선택한 파일 2개");
+    const content = el("rows").children[0].children[0].children[1];
+    assert.ok(
+      content.children.some(
+        (node) => node.textContent === "함께 저장: source/a/IMG_0001.CR3",
+      ),
+    );
+    await el("copy").fire("click");
+    assert.deepEqual(
+      downloads.map((d) => d.name),
+      ["IMG_0001.JPG", "IMG_0001.CR3"],
+    );
+    assert.equal(downloads[0].blob, jpg);
+    assert.equal(downloads[1].blob, raw);
+    assert.equal(await raw.text(), "raw-original");
+    el("raw-jpg").checked = false;
+    await el("raw-jpg").fire("change");
+    assert.equal(el("copy").disabled, true);
+    await el("search").fire("click");
+    assert.equal(el("selected-count").textContent, "선택한 파일 1개");
+  } finally {
+    h.restore();
+  }
+});
+
+for (const mode of ["copy", "zip"]) {
+  test(`RAW + JPG ${mode} writes both original contents through the existing safe output path`, async () => {
+    const outputs = new Map();
+    const missing = () => {
+      throw new DOMException("Missing", "NotFoundError");
+    };
+    const destination = {
+      kind: "directory",
+      name: "output",
+      async getDirectoryHandle(name, options) {
+        if (!options?.create) return missing();
+        return {
+          kind: "directory",
+          name,
+          async *values() {},
+          async getFileHandle(name, options) {
+            if (!options?.create) return missing();
+            return {
+              getFile: async () => new Blob([]),
+              async createWritable(options) {
+                assert.equal(options.mode, "exclusive");
+                const chunks = [];
+                return {
+                  write: async (chunk) => chunks.push(chunk),
+                  close: async () => outputs.set(name, new Blob(chunks)),
+                  abort: async () => {},
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+    const h = await setup({ showDirectoryPicker: async () => destination });
+    try {
+      const jpg = inputFile("source/IMG_0001.JPG", "jpeg-pair-original");
+      const raw = inputFile("source/IMG_0001.CR3", "raw-pair-original");
+      h.el("raw-jpg").checked = true;
+      await searchInput(h.el, [jpg, raw], "1");
+      assert.equal(h.el("selected-count").textContent, "선택한 파일 2개");
+      if (mode === "copy") {
+        await h.el("destination").fire("click");
+        await h.el("copy").fire("click");
+        assert.deepEqual([...outputs.keys()], [jpg.name, raw.name]);
+        assert.equal(await outputs.get(jpg.name).text(), await jpg.text());
+        assert.equal(await outputs.get(raw.name).text(), await raw.text());
+        assert.match(h.el("toast").textContent, /성공 2개/);
+      } else {
+        await h.el("zip").fire("click");
+        assert.equal(h.downloads.length, 1);
+        const bytes = await h.downloads[0].blob.text();
+        assert.ok(bytes.includes(jpg.name));
+        assert.ok(bytes.includes(raw.name));
+        assert.ok(bytes.includes(await jpg.text()));
+        assert.ok(bytes.includes(await raw.text()));
+      }
+      assert.equal(await jpg.text(), "jpeg-pair-original");
+      assert.equal(await raw.text(), "raw-pair-original");
+    } finally {
+      h.restore();
+    }
+  });
+}
