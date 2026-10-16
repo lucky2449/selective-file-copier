@@ -214,35 +214,41 @@ function render() {
   $("rows").append(fragment);
   updateSummary();
 }
+function availableExtensions() {
+  return [...new Set(state.files.map((file) => extension(file.name)))].sort();
+}
 function updateExtensionLabel() {
-  $("extension-summary").textContent =
-    state.extensions === null
-      ? "모든 파일"
-      : state.extensions.size
-        ? [...state.extensions]
-            .sort()
-            .map((ext) => ext || "확장자 없음")
-            .join(", ")
-        : "확장자 선택";
+  const extensions = availableExtensions();
+  const count =
+    state.extensions === null ? extensions.length : state.extensions.size;
+  const all = extensions.length > 0 && count === extensions.length;
+  $("extension-all").checked = all;
+  $("extension-all").indeterminate = count > 0 && !all;
+  $("extension-all").disabled = !extensions.length;
+  $("extension-summary").textContent = all
+    ? "모든 파일"
+    : count
+      ? [...state.extensions]
+          .sort()
+          .map((ext) => ext || "확장자 없음")
+          .join(", ")
+      : "확장자 선택";
 }
 function renderExtensions() {
   updateExtensionLabel();
-  $("extension-all").checked = state.extensions === null;
   $("extension-options").replaceChildren();
-  const extensions = [
-    ...new Set(state.files.map((file) => extension(file.name))),
-  ].sort();
+  const extensions = availableExtensions();
   for (const ext of extensions) {
     const label = node("label", undefined, "extension-option");
     const input = node("input");
     input.type = "checkbox";
     input.value = ext;
-    input.checked = state.extensions?.has(ext) ?? false;
+    input.checked = state.extensions === null || state.extensions.has(ext);
     input.addEventListener("change", () => {
-      if (state.extensions === null) state.extensions = new Set();
+      if (state.extensions === null)
+        state.extensions = new Set(availableExtensions());
       if (input.checked) state.extensions.add(ext);
       else state.extensions.delete(ext);
-      $("extension-all").checked = false;
       updateExtensionLabel();
       invalidate();
     });
@@ -346,7 +352,8 @@ $("extension-summary").addEventListener("click", (event) => {
   if (state.busy) event.preventDefault();
 });
 $("extension-all").addEventListener("change", () => {
-  state.extensions = $("extension-all").checked ? null : new Set();
+  state.extensions =
+    $("extension-all").checked && state.files.length ? null : new Set();
   renderExtensions();
   invalidate();
 });

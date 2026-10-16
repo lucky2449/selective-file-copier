@@ -944,3 +944,66 @@ test("all formats starts unchecked on load, new source and reset; explicit selec
     h.restore();
   }
 });
+
+test("all formats checkbox synchronizes individual checks and partial selection without losing remaining formats", async () => {
+  const h = await setup();
+  try {
+    const { el, downloads } = h;
+    const inputs = () =>
+      el("extension-options").children.map((label) => label.children[0]);
+    await searchInput(
+      el,
+      [
+        inputFile("source/photo.JPG", "jpg"),
+        inputFile("source/photo.CR3", "cr3"),
+        inputFile("source/photo.NEF", "nef"),
+      ],
+      "photo.JPG",
+      null,
+    );
+    assert.ok(inputs().every((input) => !input.checked));
+    await selectExtensions(el, "");
+    assert.equal(el("extension-all").checked, true);
+    assert.equal(el("extension-all").indeterminate, false);
+    assert.ok(inputs().every((input) => input.checked));
+    const nef = inputs().find((input) => input.value === ".nef");
+    nef.checked = false;
+    await nef.fire("change");
+    assert.equal(el("extension-all").checked, false);
+    assert.equal(el("extension-all").indeterminate, true);
+    assert.deepEqual(
+      inputs()
+        .filter((input) => input.checked)
+        .map((input) => input.value),
+      [".cr3", ".jpg"],
+    );
+    assert.equal(el("extension-summary").textContent, ".cr3, .jpg");
+    assert.equal(el("copy").disabled, true);
+    await el("search").fire("click");
+    await el("copy").fire("click");
+    assert.deepEqual(
+      downloads.map((download) => download.name),
+      ["photo.JPG", "photo.CR3"],
+    );
+    nef.checked = true;
+    await nef.fire("change");
+    assert.equal(el("extension-all").checked, true);
+    assert.equal(el("extension-all").indeterminate, false);
+    assert.equal(el("extension-summary").textContent, "모든 파일");
+    el("extension-all").checked = false;
+    await el("extension-all").fire("change");
+    assert.ok(inputs().every((input) => !input.checked));
+    assert.equal(el("extension-all").indeterminate, false);
+    assert.equal(el("extension-summary").textContent, "확장자 선택");
+    await selectExtensions(el, ".cr3");
+    assert.equal(el("extension-all").indeterminate, true);
+    el("extension-all").checked = true;
+    await el("extension-all").fire("change");
+    assert.ok(inputs().every((input) => input.checked));
+    await el("reset").fire("click");
+    assert.equal(el("extension-all").checked, false);
+    assert.equal(el("extension-all").indeterminate, false);
+  } finally {
+    h.restore();
+  }
+});
