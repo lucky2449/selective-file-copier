@@ -160,7 +160,10 @@ function render() {
           content.append(node("span", `함께 저장: ${file.path}`, "file-path"));
       }
     }
-    if (row.candidates.length > 1 || row.requiresConfirmation) {
+    const photoGroup = row.chosen ? state.pairs.get(row.chosen.path) : null;
+    const samePhoto =
+      photoGroup && row.candidates.every((file) => photoGroup.includes(file));
+    if (row.requiresConfirmation || (row.candidates.length > 1 && !samePhoto)) {
       const select = node("select", undefined, "row-select");
       select.setAttribute("aria-label", `${row.item}의 복사할 파일 선택`);
       select.append(

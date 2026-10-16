@@ -1143,3 +1143,44 @@ test("all selection routes find identical RAW outputs from JPG inputs with no JP
     h.restore();
   }
 });
+
+test("hide same-photo format choice but retain cross-folder and inferred confirmation controls", async () => {
+  const h = await setup();
+  try {
+    const { el, downloads } = h;
+    const selectors = (node) => [
+      ...(node.className === "row-select" ? [node] : []),
+      ...(node.children ?? []).flatMap(selectors),
+    ];
+    const jpg = inputFile("source/A/IMG_0001.JPG", "A-jpeg");
+    const raw = inputFile("source/A/IMG_0001.CR3", "A-raw");
+    await searchInput(el, [jpg, raw], "IMG_0001.JPG");
+    assert.equal(selectors(el("rows")).length, 0);
+    assert.equal(el("selected-count").textContent, "선택한 파일 2개");
+    await el("copy").fire("click");
+    assert.deepEqual(
+      downloads.map((d) => d.blob),
+      [jpg, raw],
+    );
+    const jpgB = inputFile("source/B/IMG_0001.JPG", "B-jpeg");
+    await searchInput(el, [jpg, raw, jpgB], "IMG_0001.JPG");
+    assert.equal(el("copy").disabled, true);
+    const choices = selectors(el("rows"));
+    assert.equal(choices.length, 1);
+    choices[0].value = "2";
+    await choices[0].fire("change");
+    assert.equal(selectors(el("rows")).length, 1);
+    await el("copy").fire("click");
+    assert.equal(downloads.at(-1).blob, jpgB);
+    await searchInput(
+      el,
+      [inputFile("source/P1000001.JPG"), inputFile("source/P1000001.RW2")],
+      "1",
+    );
+    assert.equal(selectors(el("rows")).length, 1);
+    assert.equal(el("copy").disabled, true);
+    assert.equal(el("zip").disabled, true);
+  } finally {
+    h.restore();
+  }
+});
