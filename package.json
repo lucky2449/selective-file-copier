@@ -11,6 +11,6 @@
     "sync:pages": "node scripts/sync-pages.mjs",
     "check:pages": "node scripts/sync-pages.mjs --check",
     "check": "node scripts/check.mjs",
-    "test": "node --test sites/filecopier-web/tests/copy-lock.test.mjs sites/filecopier-web/tests/photo-pairs.test.mjs sites/filecopier-web/tests/camera-number.test.mjs sites/filecopier-web/tests/analytics.test.mjs sites/filecopier-web/tests/core.test.mjs sites/filecopier-web/tests/source-picker.test.mjs sites/filecopier-web/tests/directory-access.test.mjs sites/filecopier-web/tests/app-directory.test.mjs"
+    "test": "node --test sites/filecopier-web/tests/source-preservation.test.mjs sites/filecopier-web/tests/copy-lock.test.mjs sites/filecopier-web/tests/photo-pairs.test.mjs sites/filecopier-web/tests/camera-number.test.mjs sites/filecopier-web/tests/analytics.test.mjs sites/filecopier-web/tests/core.test.mjs sites/filecopier-web/tests/source-picker.test.mjs sites/filecopier-web/tests/directory-access.test.mjs sites/filecopier-web/tests/app-directory.test.mjs"
   }
 }

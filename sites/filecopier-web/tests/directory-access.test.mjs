@@ -425,3 +425,49 @@ test("same timestamp copies use numbered fresh folders and skip existing files w
   assert.equal(existing.get(base).id, "existing");
   assert.equal(existing.get(`${base}_2`), "file");
 });
+
+test("an empty original returned under an outside parent is rejected before opening a writer", async () => {
+  const target = outputTarget();
+  const source = {
+    resolve: async (handle) =>
+      handle === target.handle ? ["empty-original.CR3"] : null,
+  };
+  await assert.rejects(
+    openCopyWriter(target.directory, "empty-original.CR3", { source }),
+    /원본 폴더 안/,
+  );
+  assert.equal(target.state.opened, 0);
+  assert.equal(target.state.writes, 0);
+});
+
+test("parent verification denial and cancellation cannot create even an empty source entry", async () => {
+  for (const scenario of [
+    "denied",
+    "missing-resolve",
+    "inside",
+    "cancel-during-check",
+  ]) {
+    let cancelled = false;
+    const directory = {
+      getFileHandle: () => assert.fail("Must verify parent before create:true"),
+    };
+    const source =
+      scenario === "missing-resolve"
+        ? {}
+        : {
+            async resolve() {
+              if (scenario === "denied")
+                throw new DOMException("Revoked", "NotAllowedError");
+              if (scenario === "inside") return [];
+              cancelled = true;
+              return null;
+            },
+          };
+    await assert.rejects(
+      openCopyWriter(directory, "new.jpg", {
+        source,
+        cancelled: () => cancelled,
+      }),
+    );
+  }
+});

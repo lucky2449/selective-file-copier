@@ -1,7 +1,7 @@
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
-import { openCopyWriter } from "./copy-safety.mjs";
+import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
 import {
   assertDistinctDirectories,
   createResultDirectory,
@@ -505,27 +505,11 @@ async function downloadFiles(files) {
     setBusy(false);
   }
 }
-async function exportZip(usePicker = true) {
+async function exportZip() {
+  if (state.busy) return;
   const files = outputFiles();
   if (!files.length) return;
-  // File picker must be called during the initiating user gesture.
-  let target = null;
-  if (usePicker && window.showSaveFilePicker) {
-    try {
-      target = await window.showSaveFilePicker({
-        suggestedName: "파일모아.zip",
-        types: [
-          { description: "ZIP 파일", accept: { "application/zip": [".zip"] } },
-        ],
-      });
-    } catch (error) {
-      if (error.name === "AbortError") return;
-      if (error.name !== "SecurityError" && error.name !== "NotAllowedError") {
-        report(error);
-        return;
-      }
-    }
-  }
+  // ZIP uses browser downloads only; never open an arbitrary file for writing.
   state.cancelled = false;
   setBusy(true);
   progress(0, "ZIP 파일 준비 중...");
@@ -547,14 +531,12 @@ async function exportZip(usePicker = true) {
       throw new Error(
         "ZIP은 4GB 미만으로 나눠 저장하거나 저장 폴더로 직접 복사하세요.",
       );
-    if (!target && total > 512 * 1024 * 1024)
+    if (total > 512 * 1024 * 1024)
       throw new Error(
         "이 환경의 ZIP 다운로드는 512MB까지 지원합니다. Chrome/Edge에서 사이트를 새 탭으로 열고 저장 폴더를 선택하세요.",
       );
     const parts = [];
-    sink = target
-      ? await target.createWritable()
-      : { write: async (bytes) => parts.push(bytes) };
+    sink = { write: async (bytes) => parts.push(bytes) };
     await writeZip(entries, sink, {
       cancelled: () => state.cancelled,
       progress: (index, count, bytes, size) =>
@@ -563,14 +545,13 @@ async function exportZip(usePicker = true) {
           `ZIP 저장 중 · ${Math.min(index + 1, count)} / ${count}개`,
         ),
     });
-    if (target) await sink.close();
-    else download(new Blob(parts, { type: "application/zip" }), "파일모아.zip");
+    download(new Blob(parts, { type: "application/zip" }), "파일모아.zip");
     analytics.track("zip_created");
-    progress(100, `ZIP 저장 완료 · ${entries.length}개 파일`);
-    log(
-      `ZIP ${target ? "저장" : "다운로드 요청"} 완료: ${entries.length}개 파일`,
+    progress(100, `ZIP 다운로드 요청 완료 · ${entries.length}개 파일`);
+    log(`ZIP 다운로드 요청 완료: ${entries.length}개 파일`);
+    toast(
+      "ZIP 다운로드를 요청했습니다. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.",
     );
-    toast("선택한 파일을 ZIP으로 저장했습니다.");
   } catch (error) {
     if (sink?.abort) await sink.abort().catch(() => {});
     if (error.name === "AbortError") {
@@ -729,7 +710,7 @@ async function copyFiles() {
   }
 }
 $("copy").addEventListener("click", copyFiles);
-$("zip").addEventListener("click", () => exportZip(false));
+$("zip").addEventListener("click", () => exportZip());
 $("cancel").addEventListener("click", () => {
   state.cancelled = true;
   state.copyAbort?.abort();

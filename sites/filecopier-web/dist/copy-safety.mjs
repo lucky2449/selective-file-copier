@@ -10,6 +10,14 @@ export async function openCopyWriter(
     if (cancelled()) throw new DOMException("작업 취소", "AbortError");
   };
   checkCancelled();
+  // Check the parent before create:true can add even an empty file to a source.
+  if (source) {
+    if (typeof source.resolve !== "function")
+      throw new Error("원본과 저장 위치를 확인할 수 없어 복사를 중단했습니다.");
+    if ((await source.resolve(directory)) !== null)
+      throw new Error("원본 폴더 안의 파일에는 쓸 수 없습니다.");
+  }
+  checkCancelled();
   const handle = await directory.getFileHandle(name, { create: true });
   const initial = await handle.getFile();
   const checkTarget = async () => {

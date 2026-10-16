@@ -540,9 +540,33 @@ test("source counts and downloads exclude Zone.Identifier sidecars", async () =>
   }
 });
 
-for (const failure of ["open", "write", "close", "cancel", "race", "abort"]) {
+for (const failure of [
+  "open",
+  "write",
+  "close",
+  "cancel",
+  "race",
+  "abort",
+  "read",
+  "read-midway",
+]) {
   test(`failed copy (${failure}) preserves originals and never deletes output entries`, async () => {
     const original = inputFile("source/photo.jpg", "original bytes");
+    if (failure === "read" || failure === "read-midway") {
+      original.stream = () => {
+        let reads = 0;
+        return new ReadableStream({
+          pull(controller) {
+            if (failure === "read-midway" && reads++ === 0)
+              controller.enqueue(new Uint8Array([1, 2, 3]));
+            else
+              controller.error(
+                new DOMException("Source disconnected", "NotReadableError"),
+              );
+          },
+        });
+      };
+    }
     const existing = new Blob(["existing destination bytes"]);
     let commits = 0,
       aborts = 0,
@@ -610,7 +634,11 @@ for (const failure of ["open", "write", "close", "cancel", "race", "abort"]) {
       assert.equal(h.el("copy").disabled, false, "Allow retry after failure");
       assert.match(h.el("log").textContent, /자동 삭제하지 않습니다/);
       if (failure === "race") assert.equal(attempts, 0);
-      if (["write", "close", "cancel", "abort"].includes(failure))
+      if (
+        ["write", "close", "cancel", "abort", "read", "read-midway"].includes(
+          failure,
+        )
+      )
         assert.equal(aborts, 1);
     } finally {
       h.restore();
@@ -1257,3 +1285,22 @@ for (const scenario of ["cancel-waiting", "unsupported"]) {
     }
   });
 }
+
+test("ZIP never requests a writable file handle even when a save picker exists", async () => {
+  const h = await setup({
+    showSaveFilePicker: () =>
+      assert.fail("ZIP must not acquire any writable file handle"),
+  });
+  try {
+    const original = inputFile("source/photo.CR3", "RAW bytes unchanged");
+    await searchInput(h.el, [original], "photo.CR3");
+    await h.el("zip").fire("click");
+    assert.equal(h.downloads.length, 1);
+    assert.equal(h.downloads[0].name, "파일모아.zip");
+    assert.equal(await original.text(), "RAW bytes unchanged");
+    assert.match(h.el("toast").textContent, /다운로드를 요청/);
+    assert.doesNotMatch(h.el("toast").textContent, /저장했습니다|저장 완료/);
+  } finally {
+    h.restore();
+  }
+});
