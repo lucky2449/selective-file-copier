@@ -253,3 +253,70 @@ test("multi-extension index restricts typed names, numeric candidates and inferr
     ),
   );
 });
+
+test("path requests never fall back to basenames or shorter subfolder suffixes", () => {
+  assert.deepEqual(parseItems("2026/0001\n1 / 10 / 13"), [
+    "2026/0001",
+    "1",
+    "10",
+    "13",
+  ]);
+  const entries = [
+    "root/B/photo.jpg",
+    "root/A/deep/photo.jpg",
+    "root/1234.jpg",
+  ].map((path) => ({ path, name: path.split("/").at(-1) }));
+  const idx = buildIndex(entries);
+  for (const query of [
+    "A/photo.jpg",
+    "missing/B/photo.jpg",
+    "deep/photo.jpg",
+    "missing/1234",
+    "C:\\root\\missing\\B\\photo.jpg",
+    "C:\\unrelated\\B\\photo.jpg",
+  ]) {
+    const row = matchItem(idx, query);
+    assert.equal(row.chosen, null, query);
+    assert.deepEqual(row.candidates, [], query);
+  }
+  assert.equal(matchItem(idx, "B/photo.jpg").chosen, entries[0]);
+  assert.equal(matchItem(idx, "A/deep/photo.jpg").chosen, entries[1]);
+});
+test("cross-format path matching preserves folders and explicit extensions without a filter stay strict", () => {
+  const entries = [
+    "root/A/photo.CR3",
+    "root/B/photo.CR3",
+    "root/B/onlyB.CR3",
+  ].map((path) => ({ path, name: path.split("/").at(-1) }));
+  const raw = buildIndex(entries, [".cr3"]);
+  for (const query of [
+    "A/photo.jpg",
+    "root/A/photo.jpg",
+    "C:\\photos\\root\\A\\photo.jpg",
+    "\\\\server\\share\\root\\A\\photo.jpg",
+    "A/photo",
+  ]) {
+    assert.equal(matchItem(raw, query).chosen, entries[0], query);
+  }
+  assert.deepEqual(matchItem(raw, "A/onlyB.jpg").candidates, []);
+  assert.deepEqual(matchItem(raw, "missing/photo.jpg").candidates, []);
+  assert.deepEqual(
+    matchItem(buildIndex(entries), "A/photo.jpg").candidates,
+    [],
+  );
+  assert.equal(matchItem(raw, "photo.jpg").candidates.length, 2);
+});
+test("absolute paths require one unambiguous selected root anchor", () => {
+  const entry = { path: "root/A/photo.JPG", name: "photo.JPG" };
+  const idx = buildIndex([entry]);
+  assert.equal(matchItem(idx, "C:\\photos\\root\\A\\photo.JPG").chosen, entry);
+  assert.equal(matchItem(idx, "/home/photos/root/A/photo.JPG").chosen, entry);
+  assert.deepEqual(
+    matchItem(idx, "C:\\root\\elsewhere\\root\\A\\photo.JPG").candidates,
+    [],
+  );
+  assert.deepEqual(
+    matchItem(idx, "C:\\elsewhere\\A\\photo.JPG").candidates,
+    [],
+  );
+});

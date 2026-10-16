@@ -1072,3 +1072,37 @@ for (const query of ["a/IMG_0001.JPG", "1"]) {
     }
   });
 }
+
+test("missing folder requests cannot download a namesake and RAW path lookup keeps the requested folder", async () => {
+  const h = await setup();
+  try {
+    const { el, downloads } = h;
+    const jpgB = inputFile("source/B/photo.JPG", "B-jpg");
+    const rawB = inputFile("source/B/photo.CR3", "B-raw");
+    await searchInput(el, [jpgB, rawB], "A/photo.JPG", "");
+    assert.equal(el("copy").disabled, true);
+    assert.equal(el("zip").disabled, true);
+    await el("copy").fire("click");
+    await el("zip").fire("click");
+    assert.equal(downloads.length, 0);
+    await selectExtensions(el, ".cr3");
+    await el("search").fire("click");
+    assert.equal(el("copy").disabled, true);
+    assert.equal(el("zip").disabled, true);
+    el("items").value = "photo.JPG";
+    await el("search").fire("click");
+    await el("copy").fire("click");
+    assert.equal(downloads.length, 1);
+    assert.equal(downloads[0].blob, rawB);
+    const rawA = inputFile("source/A/photo.CR3", "A-raw");
+    await searchInput(el, [jpgB, rawB, rawA], "A/photo.JPG", ".cr3");
+    assert.equal(el("selected-count").textContent, "선택한 파일 1개");
+    await el("copy").fire("click");
+    assert.equal(downloads.length, 2);
+    assert.equal(downloads[1].blob, rawA);
+    assert.equal(await rawA.text(), "A-raw");
+    assert.equal(await rawB.text(), "B-raw");
+  } finally {
+    h.restore();
+  }
+});

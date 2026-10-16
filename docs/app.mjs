@@ -16,12 +16,12 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs?v=ext-dropdown-1";
+} from "./core.mjs?v=strict-path-1";
 import {
   buildFormatGroups,
   resolvePhotoPair,
   expandPhotoPairs,
-} from "./photo-pairs.mjs?v=ext-dropdown-1";
+} from "./photo-pairs.mjs?v=strict-path-1";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
