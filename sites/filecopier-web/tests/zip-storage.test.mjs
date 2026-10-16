@@ -111,7 +111,8 @@ function fixture(fault = "") {
     options: { destination, source, locks, cancelled: () => state.cancelled },
   };
 }
-test("2 GiB boundary includes exact UTF-8 ZIP headers and rejects above it", () => {
+test("classic ZIP 4 GiB minus one boundary includes exact UTF-8 ZIP headers and rejects above it", () => {
+  assert.equal(DISK_ZIP_LIMIT, 4 * 1024 * 1024 * 1024 - 1);
   const name = "사진.CR3",
     overhead = 22 + 92 + new TextEncoder().encode(name).length * 2;
   assert.equal(
@@ -120,7 +121,7 @@ test("2 GiB boundary includes exact UTF-8 ZIP headers and rejects above it", () 
   );
   assert.throws(
     () => zipSize([{ name, file: { size: DISK_ZIP_LIMIT - overhead + 1 } }]),
-    /2GB/,
+    /4GB/,
   );
   assert.throws(
     () =>

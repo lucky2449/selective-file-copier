@@ -1324,7 +1324,7 @@ for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
       const original = inputFile("source/photo.CR3", "original");
       if (scenario === "oversize")
         Object.defineProperty(original, "size", {
-          value: 2 * 1024 * 1024 * 1024,
+          value: 4 * 1024 * 1024 * 1024,
         });
       await searchInput(h.el, [original], "photo.CR3");
       await h.el("zip").fire("click");
@@ -1333,7 +1333,7 @@ for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
       assert.equal(h.el("zip").disabled, false);
       assert.equal(await original.text(), "original");
       if (scenario === "oversize")
-        assert.match(h.el("toast").textContent, /2GB/);
+        assert.match(h.el("toast").textContent, /4GB/);
     } finally {
       h.restore();
     }

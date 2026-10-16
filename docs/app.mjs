@@ -28,7 +28,7 @@ import {
   saveZipToDirectory,
   zipSize,
   DOWNLOAD_ZIP_LIMIT,
-} from "./zip-storage.mjs?v=stream-zip-1";
+} from "./zip-storage.mjs?v=stream-zip-4gb-1";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
 if (analytics.configured) $("analytics-notice").hidden = false;
@@ -125,7 +125,7 @@ function updateSummary() {
   $("zip").disabled = state.busy || !selected.length;
   $("zip").textContent =
     state.dest || window.showDirectoryPicker
-      ? "ZIP 저장 (최대 2GB) ↓"
+      ? "ZIP 저장 (최대 약 4GB) ↓"
       : "ZIP 다운로드 (최대 512MB) ↓";
   $("copy").textContent = state.dest ? "선택 파일 복사" : "선택 파일 다운로드";
   const available = state.rows.filter((row) => row.chosen);

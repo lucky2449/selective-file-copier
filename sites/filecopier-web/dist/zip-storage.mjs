@@ -6,7 +6,8 @@ import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { writeZip } from "./zip.mjs";
 
-export const DISK_ZIP_LIMIT = 2 * 1024 * 1024 * 1024;
+// Classic ZIP uses 32-bit sizes/offsets; keep the whole archive below 4 GiB.
+export const DISK_ZIP_LIMIT = 0xffffffff;
 export const DOWNLOAD_ZIP_LIMIT = 512 * 1024 * 1024;
 // Stored ZIP: local header + descriptor + central header + two UTF-8 names.
 export function zipSize(entries, limit = DISK_ZIP_LIMIT) {
@@ -21,7 +22,7 @@ export function zipSize(entries, limit = DISK_ZIP_LIMIT) {
     if (total > limit)
       throw new Error(
         limit === DISK_ZIP_LIMIT
-          ? "ZIP은 파일 이름 등 부가 정보를 포함해 최대 2GB까지 저장할 수 있습니다. 파일을 나눠 선택하세요."
+          ? "ZIP은 파일 이름 등 부가 정보를 포함해 최대 약 4GB(4GiB 미만)까지 저장할 수 있습니다. 파일을 나눠 선택하세요."
           : "이 브라우저의 일반 ZIP 다운로드는 512MB까지 지원합니다. 대용량 ZIP은 폴더 저장을 지원하는 브라우저에서 사용하세요.",
       );
   }
@@ -77,7 +78,7 @@ export async function saveZipToDirectory(
               check();
               if (bytes + chunk.byteLength > DISK_ZIP_LIMIT)
                 throw new Error(
-                  "ZIP 크기가 2GB를 초과하여 저장을 중단했습니다.",
+                  "ZIP 크기가 약 4GB 한도를 초과하여 저장을 중단했습니다.",
                 );
               await writer.write(chunk);
               bytes += chunk.byteLength;
