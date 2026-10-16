@@ -35,7 +35,7 @@ const state = {
   files: [],
   rows: [],
   pairs: new Map(),
-  extensions: null,
+  extensions: new Set(),
   source: null,
   dest: null,
   busy: false,
@@ -254,7 +254,7 @@ function acceptSource(files, name, source = null) {
   files = files.filter((file) => !isExcludedFile(file.name));
   state.files = files;
   state.pairs = new Map();
-  state.extensions = null;
+  state.extensions = new Set();
   state.source = source;
   state.dest = null;
   $("copy-output").hidden = true;
@@ -722,7 +722,7 @@ $("reset").addEventListener("click", () => {
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";
   $("source-detail").textContent = "하위 폴더의 파일까지 함께 검색합니다";
   $("dest-label").textContent = defaultDestinationLabel;
-  state.extensions = null;
+  state.extensions = new Set();
   renderExtensions();
   $("log").textContent =
     "파일모아가 준비되었습니다. 원본 파일은 변경하지 않습니다.";

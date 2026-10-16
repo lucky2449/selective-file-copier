@@ -131,7 +131,7 @@ async function selectExtensions(el, extensions) {
     await input.fire("change");
   }
 }
-async function searchInput(el, files, items, extension = null) {
+async function searchInput(el, files, items, extension = "") {
   el("folder-input").files = files;
   await el("folder-input").fire("change");
   if (extension !== null) await selectExtensions(el, extension);
@@ -279,6 +279,7 @@ test("native selection and explicit copying retain directory identity checks and
     pickerError = null;
     nextDirectory = source;
     await el("source-alternative").fire("click");
+    await selectExtensions(el, "");
     el("items").value = "photo.jpg";
     await el("search").fire("click");
     const beforeDownload = pickerCalls;
@@ -612,6 +613,7 @@ test("imported reference names preserve extensions and cannot download a substit
       inputFile("reference/photo.JPG.Zone.Identifier"),
     ];
     await h.el("reference-input").fire("change");
+    await selectExtensions(h.el, "");
     assert.equal(h.el("items").value, '\"photo.JPG\"');
     await h.el("search").fire("click");
     assert.equal(h.el("copy").disabled, true);
@@ -908,13 +910,36 @@ test("extension checkboxes only save checked formats, clear stale selections and
     assert.equal(el("copy").disabled, true);
     assert.match(el("toast").textContent, /하나 이상 체크/);
     await el("reset").fire("click");
-    assert.equal(el("extension-all").checked, true);
+    assert.equal(el("extension-all").checked, false);
     assert.equal(el("extension-options").children.length, 0);
-    assert.equal(el("extension-summary").textContent, "모든 파일");
+    assert.equal(el("extension-summary").textContent, "확장자 선택");
     let sourceClicks = 0;
     el("folder-input").click = () => sourceClicks++;
     await el("source").fire("click");
     assert.equal(sourceClicks, 1);
+  } finally {
+    h.restore();
+  }
+});
+
+test("all formats starts unchecked on load, new source and reset; explicit selection is required", async () => {
+  const h = await setup();
+  try {
+    const { el } = h;
+    assert.equal(el("extension-all").checked, false);
+    assert.equal(el("extension-summary").textContent, "확장자 선택");
+    await searchInput(el, [inputFile("source/photo.jpg")], "photo.jpg", null);
+    assert.equal(el("extension-all").checked, false);
+    assert.equal(el("copy").disabled, true);
+    assert.match(el("toast").textContent, /하나 이상 체크/);
+    await selectExtensions(el, "");
+    await el("search").fire("click");
+    assert.equal(el("copy").disabled, false);
+    await searchInput(el, [inputFile("other/photo.jpg")], "photo.jpg", null);
+    assert.equal(el("extension-all").checked, false);
+    assert.equal(el("copy").disabled, true);
+    await el("reset").fire("click");
+    assert.equal(el("extension-all").checked, false);
   } finally {
     h.restore();
   }
