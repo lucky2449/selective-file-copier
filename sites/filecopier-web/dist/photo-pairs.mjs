@@ -1,4 +1,4 @@
-import { extension, normalize, stem } from "./core.mjs?v=raw-jpg-2";
+import { extension, normalize, stem } from "./core.mjs?v=multi-ext-1";
 
 const JPG = new Set([".jpg", ".jpeg", ".jpe"]);
 const RAW = new Set([
@@ -83,4 +83,19 @@ export function expandPhotoPairs(files, pairs) {
       result.set(companion.path, companion);
   }
   return [...result.values()];
+}
+
+// Explicitly checked formats only; files from other source folders never join a group.
+export function buildFormatGroups(files, extensions) {
+  const groups = new Map();
+  for (const file of files) {
+    if (!extensions.has(extension(file.name))) continue;
+    const id = key(file);
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(file);
+  }
+  const result = new Map();
+  for (const group of groups.values())
+    for (const file of group) result.set(file.path, group);
+  return result;
 }

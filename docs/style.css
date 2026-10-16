@@ -691,3 +691,8 @@ progress::-moz-progress-bar {
     transition: none;
   }
 }
+
+.extension-field { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+.extension-options { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+.extension-option { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
+.extension-field:disabled .extension-option { opacity: .5; cursor: default; }

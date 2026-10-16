@@ -16,10 +16,9 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs?v=raw-jpg-2";
+} from "./core.mjs?v=multi-ext-1";
 import {
-  isPhotoFile,
-  buildPhotoPairs,
+  buildFormatGroups,
   resolvePhotoPair,
   expandPhotoPairs,
 } from "./photo-pairs.mjs";
@@ -36,6 +35,7 @@ const state = {
   files: [],
   rows: [],
   pairs: new Map(),
+  extensions: null,
   source: null,
   dest: null,
   busy: false,
@@ -102,7 +102,7 @@ function refreshSaveOptions() {
 }
 function outputFiles() {
   const files = selectedFiles(state.rows);
-  return $("extension").value === "raw-jpg"
+  return state.extensions !== null
     ? expandPhotoPairs(files, state.pairs)
     : files;
 }
@@ -155,7 +155,7 @@ function render() {
     content.append(node("span", row.item, "file-name"));
     if (row.chosen) {
       content.append(node("span", row.chosen.path, "file-path"));
-      if ($("extension").value === "raw-jpg") {
+      if (state.extensions !== null) {
         for (const file of state.pairs.get(row.chosen.path) ?? []) {
           if (file !== row.chosen)
             content.append(
@@ -212,10 +212,34 @@ function render() {
   $("rows").append(fragment);
   updateSummary();
 }
+function renderExtensions() {
+  $("extension-all").checked = state.extensions === null;
+  $("extension-options").replaceChildren();
+  const extensions = [
+    ...new Set(state.files.map((file) => extension(file.name))),
+  ].sort();
+  for (const ext of extensions) {
+    const label = node("label", undefined, "extension-option");
+    const input = node("input");
+    input.type = "checkbox";
+    input.value = ext;
+    input.checked = state.extensions?.has(ext) ?? false;
+    input.addEventListener("change", () => {
+      if (state.extensions === null) state.extensions = new Set();
+      if (input.checked) state.extensions.add(ext);
+      else state.extensions.delete(ext);
+      $("extension-all").checked = false;
+      invalidate();
+    });
+    label.append(input, node("span", ext || "확장자 없음"));
+    $("extension-options").append(label);
+  }
+}
 function acceptSource(files, name, source = null) {
   files = files.filter((file) => !isExcludedFile(file.name));
   state.files = files;
-  state.pairs = buildPhotoPairs(files);
+  state.pairs = new Map();
+  state.extensions = null;
   state.source = source;
   state.dest = null;
   $("copy-output").hidden = true;
@@ -223,13 +247,7 @@ function acceptSource(files, name, source = null) {
   $("source-name").textContent = name;
   $("source-detail").textContent =
     `${files.length.toLocaleString()}개 파일 · 하위 폴더 포함`;
-  $("extension").replaceChildren(
-    new Option("모든 파일", ""),
-    new Option("RAW + JPG 함께 저장", "raw-jpg"),
-  );
-  [...new Set(files.map((file) => extension(file.name)).filter(Boolean))]
-    .sort()
-    .forEach((ext) => $("extension").append(new Option(ext, ext)));
+  renderExtensions();
   invalidate();
   log(`원본 폴더: ${name} / ${files.length.toLocaleString()}개 파일`);
   if (!files.length) toast("선택한 폴더에 파일이 없습니다.");
@@ -309,7 +327,11 @@ $("text-input").addEventListener("change", async (event) => {
   }
 });
 $("items").addEventListener("input", invalidate);
-$("extension").addEventListener("change", invalidate);
+$("extension-all").addEventListener("change", () => {
+  state.extensions = $("extension-all").checked ? null : new Set();
+  renderExtensions();
+  invalidate();
+});
 $("camera-numbers").addEventListener("change", invalidate);
 $("search").addEventListener("click", async () => {
   if (!state.files.length) {
@@ -325,16 +347,23 @@ $("search").addEventListener("click", async () => {
     toast("한 번에 최대 20,000개 항목까지 검색할 수 있습니다.");
     return;
   }
+  if (state.extensions?.size === 0) {
+    toast("복사할 파일 확장자를 하나 이상 체크하세요.");
+    return;
+  }
   setBusy(true);
   state.cancelled = false;
   analytics.track("file_search");
   progress(0, "파일 검색 중...");
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
-    const paired = $("extension").value === "raw-jpg";
+    state.pairs =
+      state.extensions === null
+        ? new Map()
+        : buildFormatGroups(state.files, state.extensions);
     const index = buildIndex(
-        paired ? state.files.filter(isPhotoFile) : state.files,
-        paired ? "" : $("extension").value,
+        state.files,
+        state.extensions === null ? "" : [...state.extensions],
         {
           cameraNumbers: $("camera-numbers").checked !== false,
         },
@@ -344,9 +373,7 @@ $("search").addEventListener("click", async () => {
       if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
       const row = matchItem(index, items[i]);
       rows.push(
-        $("extension").value === "raw-jpg"
-          ? resolvePhotoPair(row, state.pairs)
-          : row,
+        state.extensions !== null ? resolvePhotoPair(row, state.pairs) : row,
       );
       if (i % 300 === 0) {
         progress((i / items.length) * 100, "파일 검색 중...");
@@ -677,12 +704,11 @@ $("reset").addEventListener("click", () => {
   $("source-name").textContent = "파일이 있는 폴더를 선택하세요";
   $("source-detail").textContent = "하위 폴더의 파일까지 함께 검색합니다";
   $("dest-label").textContent = defaultDestinationLabel;
-  $("extension").replaceChildren(
-    new Option("모든 파일", ""),
-    new Option("RAW + JPG 함께 저장", "raw-jpg"),
-  );
+  state.extensions = null;
+  renderExtensions();
   $("log").textContent =
     "파일모아가 준비되었습니다. 원본 파일은 변경하지 않습니다.";
   invalidate();
 });
+renderExtensions();
 render();

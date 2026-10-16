@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   parseItems,
+  extension,
   isExcludedFile,
   buildIndex,
   matchItem,
@@ -234,5 +235,21 @@ test("cross-format matching requires an explicit target extension filter", () =>
   assert.equal(
     matchItem(buildIndex([raw, video], ".jpg"), "IMG_0001.JPG").chosen,
     null,
+  );
+});
+
+test("multi-extension index restricts typed names, numeric candidates and inferred candidates", () => {
+  const files = [
+    "a/IMG_0001.JPG",
+    "a/IMG_0001.CR3",
+    "a/IMG_0001.NEF",
+    "a/IMG_0001.MP4",
+  ].map((path) => ({ path, name: path.split("/").at(-1) }));
+  const index = buildIndex(files, [".JPG", ".cr3"]);
+  assert.deepEqual(matchItem(index, "1").candidates, files.slice(0, 2));
+  assert.ok(
+    matchItem(index, "IMG_0001.NEF").candidates.every((f) =>
+      [".jpg", ".cr3"].includes(extension(f.name)),
+    ),
   );
 });

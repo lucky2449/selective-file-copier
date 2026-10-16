@@ -118,10 +118,23 @@ function inputFile(path, bytes = "photo") {
     webkitRelativePath: path,
   });
 }
+async function selectExtensions(el, extensions) {
+  el("extension-all").checked = extensions === "";
+  await el("extension-all").fire("change");
+  if (extensions === "") return;
+  for (const ext of Array.isArray(extensions) ? extensions : [extensions]) {
+    const input = el("extension-options")
+      .children.map((label) => label.children[0])
+      .find((input) => input.value === ext);
+    assert.ok(input, `Missing extension checkbox ${ext}`);
+    input.checked = true;
+    await input.fire("change");
+  }
+}
 async function searchInput(el, files, items, extension = null) {
   el("folder-input").files = files;
   await el("folder-input").fire("change");
-  if (extension !== null) el("extension").value = extension;
+  if (extension !== null) await selectExtensions(el, extension);
   el("items").value = items;
   await el("search").fire("click");
 }
@@ -620,7 +633,7 @@ test("an explicit RAW filter still allows a JPG reference to download the RAW by
       "photo.JPG",
     );
     assert.equal(h.el("copy").disabled, true);
-    h.el("extension").value = ".cr3";
+    await selectExtensions(h.el, ".cr3");
     await h.el("search").fire("click");
     await h.el("copy").fire("click");
     assert.deepEqual(
@@ -761,14 +774,17 @@ test("an inferred single candidate cannot be downloaded until explicitly confirm
   }
 });
 
-test("RAW + JPG opt-in previews and downloads companions once; disabling returns to strict extension", async () => {
+test("checked extensions previews and downloads companions once; disabling returns to strict extension", async () => {
   const h = await setup();
   const { el, downloads } = h;
   try {
     const jpg = inputFile("source/a/IMG_0001.JPG", "jpeg-original");
     const raw = inputFile("source/a/IMG_0001.CR3", "raw-original");
     const other = inputFile("source/b/IMG_0001.CR3", "other-folder");
-    await searchInput(el, [jpg, raw, other], "a/IMG_0001.JPG", "raw-jpg");
+    await searchInput(el, [jpg, raw, other], "a/IMG_0001.JPG", [
+      ".jpg",
+      ".cr3",
+    ]);
     assert.equal(el("selected-count").textContent, "선택한 파일 2개");
     const content = el("rows").children[0].children[0].children[1];
     assert.ok(
@@ -784,8 +800,7 @@ test("RAW + JPG opt-in previews and downloads companions once; disabling returns
     assert.equal(downloads[0].blob, jpg);
     assert.equal(downloads[1].blob, raw);
     assert.equal(await raw.text(), "raw-original");
-    el("extension").value = "";
-    await el("extension").fire("change");
+    await selectExtensions(el, "");
     assert.equal(el("copy").disabled, true);
     await el("search").fire("click");
     assert.equal(el("selected-count").textContent, "선택한 파일 1개");
@@ -831,7 +846,7 @@ for (const mode of ["copy", "zip"]) {
     try {
       const jpg = inputFile("source/IMG_0001.JPG", "jpeg-pair-original");
       const raw = inputFile("source/IMG_0001.CR3", "raw-pair-original");
-      await searchInput(h.el, [jpg, raw], "1", "raw-jpg");
+      await searchInput(h.el, [jpg, raw], "1", [".jpg", ".cr3"]);
       assert.equal(h.el("selected-count").textContent, "선택한 파일 2개");
       if (mode === "copy") {
         await h.el("destination").fire("click");
@@ -857,37 +872,43 @@ for (const mode of ["copy", "zip"]) {
   });
 }
 
-test("RAW + JPG extension choice survives source loading and reset, excludes video matches, and clears stale selections", async () => {
+test("extension checkboxes only save checked formats, clear stale selections and reset", async () => {
   const h = await setup();
   try {
-    const { el } = h;
+    const { el, downloads } = h;
     await searchInput(
       el,
       [
         inputFile("source/IMG_0001.JPG"),
         inputFile("source/IMG_0001.CR3"),
+        inputFile("source/IMG_0001.NEF"),
         inputFile("source/IMG_0001.MP4"),
       ],
       "1",
-      "raw-jpg",
+      [".jpg", ".cr3"],
     );
-    assert.ok(
-      el("extension").children.some((option) => option.value === "raw-jpg"),
-    );
+    assert.equal(el("extension-all").checked, false);
     assert.equal(el("selected-count").textContent, "선택한 파일 2개");
-    el("items").value = "IMG_0001.MP4";
+    await el("copy").fire("click");
+    assert.deepEqual(
+      downloads.map((d) => d.name),
+      ["IMG_0001.JPG", "IMG_0001.CR3"],
+    );
+    await selectExtensions(el, [".cr3", ".nef"]);
+    assert.equal(el("copy").disabled, true);
     await el("search").fire("click");
-    assert.equal(el("copy").disabled, true);
-    el("extension").value = ".cr3";
-    await el("extension").fire("change");
-    assert.equal(el("copy").disabled, true);
-    el("items").value = "1";
+    assert.equal(el("selected-count").textContent, "선택한 파일 2개");
+    await selectExtensions(el, ".cr3");
     await el("search").fire("click");
     assert.equal(el("selected-count").textContent, "선택한 파일 1개");
+    el("extension-all").checked = false;
+    await el("extension-all").fire("change");
+    await el("search").fire("click");
+    assert.equal(el("copy").disabled, true);
+    assert.match(el("toast").textContent, /하나 이상 체크/);
     await el("reset").fire("click");
-    assert.ok(
-      el("extension").children.some((option) => option.value === "raw-jpg"),
-    );
+    assert.equal(el("extension-all").checked, true);
+    assert.equal(el("extension-options").children.length, 0);
   } finally {
     h.restore();
   }

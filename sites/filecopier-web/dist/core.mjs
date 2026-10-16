@@ -34,8 +34,12 @@ const add = (map, key, file) => {
   map.get(key).push(file);
 };
 export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
+  const filters = (Array.isArray(filter) ? filter : filter ? [filter] : []).map(
+    (ext) => ext.toLowerCase(),
+  );
   const index = {
-    targetExtension: filter.toLowerCase(),
+    targetExtension: filters.length === 1 ? filters[0] : "",
+    hasExtensionFilter: filters.length > 0,
     names: new Map(),
     stems: new Map(),
     ids: new Map(),
@@ -44,8 +48,7 @@ export function buildIndex(files, filter = "", { cameraNumbers = true } = {}) {
   };
   for (const file of files) {
     if (isExcludedFile(file.name)) continue;
-    if (index.targetExtension && extension(file.name) !== index.targetExtension)
-      continue;
+    if (filters.length && !filters.includes(extension(file.name))) continue;
     add(index.names, normalize(file.name), file);
     add(index.stems, normalize(stem(file.name)), file);
     const path = normalize(file.path);
@@ -93,7 +96,7 @@ export function matchItem(index, item) {
   if (!candidates.length) candidates = index.names.get(name) ?? [];
   // A typed extension is exact by default. Cross-format lookup is allowed
   // only when the user explicitly selects a target extension filter.
-  if (!candidates.length && (!extension(name) || index.targetExtension))
+  if (!candidates.length && (!extension(name) || index.hasExtensionFilter))
     candidates = index.stems.get(normalize(stem(name))) ?? [];
   if (!candidates.length && /^\d+$/.test(item)) {
     const id = numericId(item);
