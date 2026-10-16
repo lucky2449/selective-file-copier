@@ -903,8 +903,9 @@ for (const mode of ["copy", "zip"]) {
         assert.match(h.el("toast").textContent, /성공 2개/);
       } else {
         await h.el("zip").fire("click");
-        assert.equal(h.downloads.length, 1);
-        const bytes = await h.downloads[0].blob.text();
+        assert.equal(h.downloads.length, 0);
+        assert.ok(outputs.has("파일모아.zip"));
+        const bytes = await outputs.get("파일모아.zip").text();
         assert.ok(bytes.includes(jpg.name));
         assert.ok(bytes.includes(raw.name));
         assert.ok(bytes.includes(await jpg.text()));
@@ -1304,3 +1305,37 @@ test("ZIP never requests a writable file handle even when a save picker exists",
     h.restore();
   }
 });
+
+for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
+  test(`disk ZIP ${scenario} creates no download and restores controls`, async () => {
+    let picked = 0;
+    const h = await setup({
+      showSaveFilePicker: () => assert.fail("Never select an existing file"),
+      showDirectoryPicker: async (options) => {
+        picked++;
+        assert.equal(options.mode, "readwrite");
+        throw new DOMException(
+          "Picker stopped",
+          scenario === "cancel-picker" ? "AbortError" : "NotAllowedError",
+        );
+      },
+    });
+    try {
+      const original = inputFile("source/photo.CR3", "original");
+      if (scenario === "oversize")
+        Object.defineProperty(original, "size", {
+          value: 2 * 1024 * 1024 * 1024,
+        });
+      await searchInput(h.el, [original], "photo.CR3");
+      await h.el("zip").fire("click");
+      assert.equal(picked, scenario === "oversize" ? 0 : 1);
+      assert.equal(h.downloads.length, 0);
+      assert.equal(h.el("zip").disabled, false);
+      assert.equal(await original.text(), "original");
+      if (scenario === "oversize")
+        assert.match(h.el("toast").textContent, /2GB/);
+    } finally {
+      h.restore();
+    }
+  });
+}

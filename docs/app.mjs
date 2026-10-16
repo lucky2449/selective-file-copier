@@ -24,6 +24,11 @@ import {
   expandPhotoPairs,
 } from "./photo-pairs.mjs?v=selected-formats-1";
 import { writeZip } from "./zip.mjs";
+import {
+  saveZipToDirectory,
+  zipSize,
+  DOWNLOAD_ZIP_LIMIT,
+} from "./zip-storage.mjs?v=stream-zip-1";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
 if (analytics.configured) $("analytics-notice").hidden = false;
@@ -118,6 +123,10 @@ function updateSummary() {
   $("selected-count").textContent = `선택한 파일 ${selected.length}개`;
   $("copy").disabled = state.busy || !selected.length;
   $("zip").disabled = state.busy || !selected.length;
+  $("zip").textContent =
+    state.dest || window.showDirectoryPicker
+      ? "ZIP 저장 (최대 2GB) ↓"
+      : "ZIP 다운로드 (최대 512MB) ↓";
   $("copy").textContent = state.dest ? "선택 파일 복사" : "선택 파일 다운로드";
   const available = state.rows.filter((row) => row.chosen);
   $("select-all").checked =
@@ -509,56 +518,81 @@ async function exportZip() {
   if (state.busy) return;
   const files = outputFiles();
   if (!files.length) return;
-  // ZIP uses browser downloads only; never open an arbitrary file for writing.
   state.cancelled = false;
+  const controller = new AbortController();
+  state.copyAbort = controller;
   setBusy(true);
+  $("copy-output").hidden = true;
   progress(0, "ZIP 파일 준비 중...");
-  let sink;
   try {
-    const occupied = new Set(),
-      entries = [];
-    for (const entry of files) {
-      if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
-      entries.push({
-        name: uniqueName(entry.name, occupied),
-        file: entry.file,
+    const occupied = new Set();
+    const entries = files.map((entry) => ({
+      name: uniqueName(entry.name, occupied),
+      file: entry.file,
+    }));
+    const disk = Boolean(state.dest || window.showDirectoryPicker);
+    zipSize(entries, disk ? undefined : DOWNLOAD_ZIP_LIMIT);
+    // Invoke a folder picker in the click gesture. Never choose an existing file.
+    const destination = disk
+      ? state.dest || (await window.showDirectoryPicker({ mode: "readwrite" }))
+      : null;
+    if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
+    const reportProgress = (index, count, bytes, size) =>
+      progress(
+        Math.min(100, ((index + (size ? bytes / size : 0)) / count) * 100),
+        `ZIP 저장 중 · ${Math.min(index + 1, count)} / ${count}개`,
+      );
+    if (disk) {
+      const result = await saveZipToDirectory(entries, {
+        destination,
+        source: state.source,
+        locks: window.navigator?.locks,
+        signal: controller.signal,
+        cancelled: () => state.cancelled,
+        progress: reportProgress,
+        onWaiting: () =>
+          progress(
+            0,
+            "ZIP 저장 순서 대기 중 · 다른 탭의 저장이 끝나면 시작합니다",
+          ),
+        onDirectory: (path) => {
+          $("copy-output").textContent = `이번 저장 위치: ${path}`;
+          $("copy-output").hidden = false;
+          log(`ZIP 저장 위치: ${path}`);
+        },
       });
+      progress(100, `ZIP 저장 완료 · ${entries.length}개 파일`);
+      log(`ZIP 저장 완료: ${entries.length}개 파일 · ${result.bytes}바이트`);
+      toast("새 결과 폴더에 ZIP을 저장했습니다.");
+    } else {
+      const parts = [];
+      await writeZip(
+        entries,
+        { write: async (bytes) => parts.push(bytes) },
+        {
+          cancelled: () => state.cancelled,
+          progress: reportProgress,
+        },
+      );
+      if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
+      download(new Blob(parts, { type: "application/zip" }), "파일모아.zip");
+      progress(100, `ZIP 다운로드 요청 완료 · ${entries.length}개 파일`);
+      log(`ZIP 다운로드 요청 완료: ${entries.length}개 파일`);
+      toast(
+        "ZIP 다운로드를 요청했습니다. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.",
+      );
     }
-    const total =
-      entries.reduce((sum, entry) => sum + entry.file.size, 0) +
-      entries.length * 512;
-    if (total > 0xffffffff)
-      throw new Error(
-        "ZIP은 4GB 미만으로 나눠 저장하거나 저장 폴더로 직접 복사하세요.",
-      );
-    if (total > 512 * 1024 * 1024)
-      throw new Error(
-        "이 환경의 ZIP 다운로드는 512MB까지 지원합니다. Chrome/Edge에서 사이트를 새 탭으로 열고 저장 폴더를 선택하세요.",
-      );
-    const parts = [];
-    sink = { write: async (bytes) => parts.push(bytes) };
-    await writeZip(entries, sink, {
-      cancelled: () => state.cancelled,
-      progress: (index, count, bytes, size) =>
-        progress(
-          Math.min(100, ((index + (size ? bytes / size : 0)) / count) * 100),
-          `ZIP 저장 중 · ${Math.min(index + 1, count)} / ${count}개`,
-        ),
-    });
-    download(new Blob(parts, { type: "application/zip" }), "파일모아.zip");
     analytics.track("zip_created");
-    progress(100, `ZIP 다운로드 요청 완료 · ${entries.length}개 파일`);
-    log(`ZIP 다운로드 요청 완료: ${entries.length}개 파일`);
-    toast(
-      "ZIP 다운로드를 요청했습니다. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.",
-    );
   } catch (error) {
-    if (sink?.abort) await sink.abort().catch(() => {});
     if (error.name === "AbortError") {
-      log("ZIP 저장 취소");
+      log("ZIP 저장 취소 · 중단된 출력은 자동 삭제하지 않습니다.");
       toast("작업을 취소했습니다.");
-    } else report(error);
+    } else {
+      log("ZIP 저장 실패 · 중단된 출력은 자동 삭제하지 않습니다.");
+      report(error);
+    }
   } finally {
+    state.copyAbort = null;
     setBusy(false);
   }
 }
