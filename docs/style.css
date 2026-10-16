@@ -367,12 +367,12 @@ select {
 .result-summary {
   flex: 0 0 auto;
   padding: 10px 12px;
-  border-top: 1px solid #355247;
-  background: #17231e;
+  border-top: 1px solid #343a43;
+  background: #15181d;
   overflow-wrap: anywhere;
 }
 .summary-selection {
-  color: #dbf4e9;
+  color: #eef0f4;
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -381,10 +381,7 @@ select {
 .summary-requests {
   margin-top: 4px;
   font-size: 11px;
-  color: #b4c5bb;
-}
-.summary-requests {
-  color: #cfb98d;
+  color: #a6aeb9;
 }
 
 table {
