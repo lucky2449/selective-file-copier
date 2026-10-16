@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=dark-2" />
-    <script type="module" src="./app.mjs?v=raw-jpg-1"></script>
+    <script type="module" src="./app.mjs?v=raw-jpg-2"></script>
   </head>
   <body>
     <header>
@@ -99,16 +99,12 @@
           <label class="field-label" for="extension">복사할 파일 확장자</label
           ><select id="extension">
             <option value="">모든 파일</option>
+            <option value="raw-jpg">RAW + JPG 함께 저장</option>
           </select>
           <p class="hint">
             JPG 이름을 입력하고 RAW 확장자를 선택하면 같은 이름의 RAW 파일을
             찾습니다.
           </p>
-          <label class="hint">
-            <input id="raw-jpg" type="checkbox" />
-            RAW + JPG 함께 저장
-          </label>
-          <p class="hint">선택한 파일과 같은 폴더·같은 이름의 RAW/JPG를 함께 저장합니다. 확장자 필터와 관계없이 짝을 포함하며, 검색 결과에 함께 저장할 파일을 표시합니다. 짝이 없으면 선택한 파일만 저장합니다.</p>
           <label class="hint">
             <input id="camera-numbers" type="checkbox" checked />
             제조사별 사진 번호 후보 포함

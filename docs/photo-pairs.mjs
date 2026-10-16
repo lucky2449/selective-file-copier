@@ -1,4 +1,4 @@
-import { extension, normalize, stem } from "./core.mjs?v=raw-jpg-1";
+import { extension, normalize, stem } from "./core.mjs?v=raw-jpg-2";
 
 const JPG = new Set([".jpg", ".jpeg", ".jpe"]);
 const RAW = new Set([
@@ -30,6 +30,7 @@ const kind = (file) =>
     : RAW.has(extension(file.name))
       ? "raw"
       : null;
+export const isPhotoFile = (file) => kind(file) !== null;
 const key = (file) => {
   const path = file.path.normalize("NFC").replace(/\\/g, "/");
   const slash = path.lastIndexOf("/");

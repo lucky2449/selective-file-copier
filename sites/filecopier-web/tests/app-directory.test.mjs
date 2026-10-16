@@ -118,9 +118,10 @@ function inputFile(path, bytes = "photo") {
     webkitRelativePath: path,
   });
 }
-async function searchInput(el, files, items) {
+async function searchInput(el, files, items, extension = null) {
   el("folder-input").files = files;
   await el("folder-input").fire("change");
+  if (extension !== null) el("extension").value = extension;
   el("items").value = items;
   await el("search").fire("click");
 }
@@ -767,8 +768,7 @@ test("RAW + JPG opt-in previews and downloads companions once; disabling returns
     const jpg = inputFile("source/a/IMG_0001.JPG", "jpeg-original");
     const raw = inputFile("source/a/IMG_0001.CR3", "raw-original");
     const other = inputFile("source/b/IMG_0001.CR3", "other-folder");
-    el("raw-jpg").checked = true;
-    await searchInput(el, [jpg, raw, other], "a/IMG_0001.JPG");
+    await searchInput(el, [jpg, raw, other], "a/IMG_0001.JPG", "raw-jpg");
     assert.equal(el("selected-count").textContent, "선택한 파일 2개");
     const content = el("rows").children[0].children[0].children[1];
     assert.ok(
@@ -784,8 +784,8 @@ test("RAW + JPG opt-in previews and downloads companions once; disabling returns
     assert.equal(downloads[0].blob, jpg);
     assert.equal(downloads[1].blob, raw);
     assert.equal(await raw.text(), "raw-original");
-    el("raw-jpg").checked = false;
-    await el("raw-jpg").fire("change");
+    el("extension").value = "";
+    await el("extension").fire("change");
     assert.equal(el("copy").disabled, true);
     await el("search").fire("click");
     assert.equal(el("selected-count").textContent, "선택한 파일 1개");
@@ -831,8 +831,7 @@ for (const mode of ["copy", "zip"]) {
     try {
       const jpg = inputFile("source/IMG_0001.JPG", "jpeg-pair-original");
       const raw = inputFile("source/IMG_0001.CR3", "raw-pair-original");
-      h.el("raw-jpg").checked = true;
-      await searchInput(h.el, [jpg, raw], "1");
+      await searchInput(h.el, [jpg, raw], "1", "raw-jpg");
       assert.equal(h.el("selected-count").textContent, "선택한 파일 2개");
       if (mode === "copy") {
         await h.el("destination").fire("click");
@@ -857,3 +856,39 @@ for (const mode of ["copy", "zip"]) {
     }
   });
 }
+
+test("RAW + JPG extension choice survives source loading and reset, excludes video matches, and clears stale selections", async () => {
+  const h = await setup();
+  try {
+    const { el } = h;
+    await searchInput(
+      el,
+      [
+        inputFile("source/IMG_0001.JPG"),
+        inputFile("source/IMG_0001.CR3"),
+        inputFile("source/IMG_0001.MP4"),
+      ],
+      "1",
+      "raw-jpg",
+    );
+    assert.ok(
+      el("extension").children.some((option) => option.value === "raw-jpg"),
+    );
+    assert.equal(el("selected-count").textContent, "선택한 파일 2개");
+    el("items").value = "IMG_0001.MP4";
+    await el("search").fire("click");
+    assert.equal(el("copy").disabled, true);
+    el("extension").value = ".cr3";
+    await el("extension").fire("change");
+    assert.equal(el("copy").disabled, true);
+    el("items").value = "1";
+    await el("search").fire("click");
+    assert.equal(el("selected-count").textContent, "선택한 파일 1개");
+    await el("reset").fire("click");
+    assert.ok(
+      el("extension").children.some((option) => option.value === "raw-jpg"),
+    );
+  } finally {
+    h.restore();
+  }
+});
