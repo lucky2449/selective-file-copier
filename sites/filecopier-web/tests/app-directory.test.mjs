@@ -888,6 +888,7 @@ test("extension checkboxes only save checked formats, clear stale selections and
       [".jpg", ".cr3"],
     );
     assert.equal(el("extension-all").checked, false);
+    assert.equal(el("extension-summary").textContent, ".cr3, .jpg");
     assert.equal(el("selected-count").textContent, "선택한 파일 2개");
     await el("copy").fire("click");
     assert.deepEqual(
@@ -909,6 +910,11 @@ test("extension checkboxes only save checked formats, clear stale selections and
     await el("reset").fire("click");
     assert.equal(el("extension-all").checked, true);
     assert.equal(el("extension-options").children.length, 0);
+    assert.equal(el("extension-summary").textContent, "모든 파일");
+    let sourceClicks = 0;
+    el("folder-input").click = () => sourceClicks++;
+    await el("source").fire("click");
+    assert.equal(sourceClicks, 1);
   } finally {
     h.restore();
   }

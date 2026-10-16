@@ -692,7 +692,15 @@ progress::-moz-progress-bar {
   }
 }
 
-.extension-field { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
-.extension-options { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
-.extension-option { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
+.extension-menu { position: relative; margin-bottom: 16px; }
+.extension-menu summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #343b48; border-radius: 8px; background: #131720; color: #e8edf5; cursor: pointer; font-size: 14px; list-style: none; }
+.extension-menu summary::-webkit-details-marker { display: none; }
+.extension-menu summary::after { content: "▾"; flex-shrink: 0; }
+.extension-menu[open] summary::after { content: "▴"; }
+.extension-menu summary:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
+.extension-menu summary[aria-disabled="true"] { opacity: .5; cursor: default; }
+.extension-field { position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 20; max-height: 240px; overflow-y: auto; box-sizing: border-box; padding: 12px; margin: 0; border: 1px solid #343b48; border-radius: 8px; background: #171c25; box-shadow: 0 12px 28px #0008; min-width: 0; }
+.extension-options { display: grid; gap: 4px; margin-top: 6px; }
+.extension-option { display: flex; align-items: center; gap: 9px; padding: 7px 4px; font-size: 14px; cursor: pointer; }
+.extension-option:hover { background: #ffffff08; }
 .extension-field:disabled .extension-option { opacity: .5; cursor: default; }

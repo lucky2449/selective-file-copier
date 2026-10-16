@@ -24,6 +24,18 @@ for (const directory of [appDirectory, testsDirectory, "scripts"]) {
 
 const index = path.join(root, appDirectory, "index.html");
 const html = await readFile(index, "utf8");
+// The fake DOM in interaction tests must not hide missing IDs in the real HTML.
+const htmlIds = new Set(
+  [...html.matchAll(/id="([^"]+)"/g)].map((match) => match[1]),
+);
+const application = await readFile(
+  path.join(root, appDirectory, "app.mjs"),
+  "utf8",
+);
+for (const match of application.matchAll(/\$\("([^"]+)"\)/g)) {
+  if (!htmlIds.has(match[1]))
+    throw new Error(`Application element missing from HTML: ${match[1]}`);
+}
 for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
   const reference = match[1];
   if (/^(?:https?:|mailto:|#)/.test(reference)) continue;

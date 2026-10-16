@@ -1,4 +1,4 @@
-import { extension, normalize, stem } from "./core.mjs?v=multi-ext-1";
+import { extension, normalize, stem } from "./core.mjs?v=ext-dropdown-1";
 
 const JPG = new Set([".jpg", ".jpeg", ".jpe"]);
 const RAW = new Set([

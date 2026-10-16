@@ -16,12 +16,12 @@ import {
   normalize,
   uniqueName,
   selectedFiles,
-} from "./core.mjs?v=multi-ext-1";
+} from "./core.mjs?v=ext-dropdown-1";
 import {
   buildFormatGroups,
   resolvePhotoPair,
   expandPhotoPairs,
-} from "./photo-pairs.mjs";
+} from "./photo-pairs.mjs?v=ext-dropdown-1";
 import { writeZip } from "./zip.mjs";
 const $ = (id) => document.getElementById(id);
 const analytics = createAnalytics({ measurementId, window, document });
@@ -66,6 +66,8 @@ function progress(value, message) {
 }
 function setBusy(value) {
   state.busy = value;
+  $("extension-summary").setAttribute("aria-disabled", String(value));
+  if (value) $("extension-menu").open = false;
   for (const id of [
     "source",
     "source-alternative",
@@ -212,7 +214,19 @@ function render() {
   $("rows").append(fragment);
   updateSummary();
 }
+function updateExtensionLabel() {
+  $("extension-summary").textContent =
+    state.extensions === null
+      ? "모든 파일"
+      : state.extensions.size
+        ? [...state.extensions]
+            .sort()
+            .map((ext) => ext || "확장자 없음")
+            .join(", ")
+        : "확장자 선택";
+}
 function renderExtensions() {
+  updateExtensionLabel();
   $("extension-all").checked = state.extensions === null;
   $("extension-options").replaceChildren();
   const extensions = [
@@ -229,6 +243,7 @@ function renderExtensions() {
       if (input.checked) state.extensions.add(ext);
       else state.extensions.delete(ext);
       $("extension-all").checked = false;
+      updateExtensionLabel();
       invalidate();
     });
     label.append(input, node("span", ext || "확장자 없음"));
@@ -327,6 +342,9 @@ $("text-input").addEventListener("change", async (event) => {
   }
 });
 $("items").addEventListener("input", invalidate);
+$("extension-summary").addEventListener("click", (event) => {
+  if (state.busy) event.preventDefault();
+});
 $("extension-all").addEventListener("change", () => {
   state.extensions = $("extension-all").checked ? null : new Set();
   renderExtensions();
