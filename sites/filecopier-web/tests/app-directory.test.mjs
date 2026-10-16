@@ -239,7 +239,7 @@ test("native selection and explicit copying retain directory identity checks and
     },
     async getFileHandle(name, options) {
       if (!options?.create) throw new DOMException("Missing", "NotFoundError");
-      assert.equal(this.name.startsWith("파일모아_"), true);
+      assert.match(this.name, /^\d{8}_\d{6}(?:_\d+)?$/);
       createdFiles++;
       assert.equal(name, "photo.jpg");
       return {
@@ -415,7 +415,11 @@ test("standard input can choose a destination before and after downloading and c
     getFileHandle: () =>
       assert.fail("Never write into the unverified source/destination parent"),
     async getDirectoryHandle(name, options) {
-      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
+      if (!options?.create) {
+        if (outputs.some((output) => output.name === name))
+          return { kind: "directory", name };
+        throw new DOMException("Missing", "NotFoundError");
+      }
       creations++;
       const bytes = [];
       const output = { name, bytes };
@@ -477,7 +481,7 @@ test("standard input can choose a destination before and after downloading and c
     assert.equal(pickerCalls, 1);
     assert.equal(creations, 1);
     assert.equal(await new Blob(outputs[0].bytes).text(), "unchanged bytes");
-    assert.match(h.el("copy-output").textContent, /output\/파일모아_/);
+    assert.match(h.el("copy-output").textContent, /output\/\d{8}_\d{6}/);
     assert.equal(
       h.downloads.length,
       1,

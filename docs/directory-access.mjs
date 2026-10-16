@@ -75,8 +75,11 @@ export function makeResultDirectoryName(date = new Date()) {
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-  return `파일모아_${day}_${crypto.randomUUID()}`;
+  ].join("");
+  const time = [date.getHours(), date.getMinutes(), date.getSeconds()]
+    .map((part) => String(part).padStart(2, "0"))
+    .join("");
+  return `${day}_${time}`;
 }
 
 // Always isolate copies in a fresh, empty child folder.
@@ -92,9 +95,13 @@ export async function createResultDirectory(
   const check = () => {
     if (cancelled()) throw new DOMException("작업 취소", "AbortError");
   };
+  const tried = new Map();
   for (let attempt = 0; attempt < 20; attempt++) {
     check();
-    const name = makeName();
+    const base = makeName();
+    const count = tried.get(base) ?? 0;
+    tried.set(base, count + 1);
+    const name = count ? `${base}_${count + 1}` : base;
     try {
       await parent.getDirectoryHandle(name);
       continue; // Never reuse an existing directory, including an original source.

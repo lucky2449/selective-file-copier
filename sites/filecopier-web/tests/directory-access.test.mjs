@@ -346,7 +346,7 @@ test("a new unchanged output commits successfully and never needs cleanup deleti
   assert.equal(target.state.aborts, 0);
 });
 
-test("result folder dates follow the device timezone at midnight and year rollover, preserving unique names", async () => {
+test("result folder dates follow the device timezone at midnight and year rollover, using compact time names", async () => {
   const { execFileSync } = await import("node:child_process");
   const moduleUrl = new URL("../dist/directory-access.mjs", import.meta.url)
     .href;
@@ -374,14 +374,54 @@ test("result folder dates follow the device timezone at midnight and year rollov
     );
     pairs.forEach(([first, second], i) => {
       assert.ok(
-        first.startsWith(`파일모아_${expected[i]}_`),
+        first.startsWith(`${expected[i].replaceAll("-", "")}_`),
         `${timezone}: ${first}`,
       );
-      assert.match(
+      assert.match(first, /^\d{8}_\d{6}$/);
+      const times = {
+        "Asia/Seoul": ["235959", "000000", "000000", "093000"],
+        UTC: ["145959", "150000", "150000", "003000"],
+        "America/Los_Angeles": ["075959", "080000", "070000", "173000"],
+      };
+      assert.equal(
         first,
-        /_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        `${expected[i].replaceAll("-", "")}_${times[timezone][i]}`,
       );
-      assert.notEqual(first, second);
+      assert.equal(first, second);
     });
   }
+});
+
+test("same timestamp copies use numbered fresh folders and skip existing files without deleting anything", async () => {
+  const base = "20261016_143025";
+  const existing = new Map([
+    [base, directory("existing", base)],
+    [`${base}_2`, "file"],
+  ]);
+  const created = [];
+  const parent = {
+    kind: "directory",
+    async getDirectoryHandle(name, options) {
+      if (existing.has(name)) {
+        if (existing.get(name) === "file")
+          throw new DOMException("File", "TypeMismatchError");
+        return existing.get(name);
+      }
+      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
+      const output = directory(name, name);
+      existing.set(name, output);
+      created.push(name);
+      return output;
+    },
+    removeEntry() {
+      assert.fail("Never delete existing entries");
+    },
+  };
+  const first = await createResultDirectory(parent, { makeName: () => base });
+  const second = await createResultDirectory(parent, { makeName: () => base });
+  assert.equal(first.name, `${base}_3`);
+  assert.equal(second.name, `${base}_4`);
+  assert.deepEqual(created, [`${base}_3`, `${base}_4`]);
+  assert.equal(existing.get(base).id, "existing");
+  assert.equal(existing.get(`${base}_2`), "file");
 });

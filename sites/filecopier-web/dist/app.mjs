@@ -5,7 +5,7 @@ import {
   assertDistinctDirectories,
   createResultDirectory,
   selectNativeSource,
-} from "./directory-access.mjs?v=local-date-1";
+} from "./directory-access.mjs?v=short-time-name-1";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
   parseItems,
