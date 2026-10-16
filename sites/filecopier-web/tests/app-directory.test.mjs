@@ -776,7 +776,7 @@ test("an inferred single candidate cannot be downloaded until explicitly confirm
   }
 });
 
-test("checked extensions previews and downloads companions once; disabling returns to strict extension", async () => {
+test("checked and all extensions preview companions and download each source once", async () => {
   const h = await setup();
   const { el, downloads } = h;
   try {
@@ -805,7 +805,7 @@ test("checked extensions previews and downloads companions once; disabling retur
     await selectExtensions(el, "");
     assert.equal(el("copy").disabled, true);
     await el("search").fire("click");
-    assert.equal(el("selected-count").textContent, "선택한 파일 1개");
+    assert.equal(el("selected-count").textContent, "선택한 파일 2개");
   } finally {
     h.restore();
   }
@@ -1007,3 +1007,64 @@ test("all formats checkbox synchronizes individual checks and partial selection 
     h.restore();
   }
 });
+
+for (const query of ["a/IMG_0001.JPG", "1"]) {
+  test(`all extensions ZIP includes same-folder JPG and RAW originals once: ${query}`, async () => {
+    const h = await setup();
+    try {
+      const { el, downloads } = h;
+      const photos = [
+        inputFile("source/a/IMG_0001.JPG", "jpeg-original"),
+        inputFile("source/a/IMG_0001.CR3", "canon-original"),
+        inputFile("source/a/IMG_0001.NEF", "nikon-original"),
+      ];
+      const extras = [
+        inputFile("source/a/IMG_0002.CR3", "different-photo"),
+        inputFile("source/a/IMG_0001.JPG.Zone.Identifier", "sidecar"),
+      ];
+      if (query.includes("/"))
+        extras.push(inputFile("source/b/IMG_0001.CR3", "other-folder"));
+      await searchInput(el, [...photos, ...extras], query, "");
+      await el("zip").fire("click");
+      assert.equal(downloads.length, 1);
+      const bytes = new Uint8Array(await downloads[0].blob.arrayBuffer());
+      const view = new DataView(bytes.buffer);
+      const end = bytes.length - 22;
+      assert.equal(view.getUint32(end, true), 0x06054b50);
+      assert.equal(view.getUint16(end + 10, true), photos.length);
+      let offset = view.getUint32(end + 16, true);
+      const entries = new Map();
+      for (let i = 0; i < photos.length; i++) {
+        assert.equal(view.getUint32(offset, true), 0x02014b50);
+        const length = view.getUint16(offset + 28, true);
+        const name = new TextDecoder().decode(
+          bytes.subarray(offset + 46, offset + 46 + length),
+        );
+        const size = view.getUint32(offset + 24, true);
+        const local = view.getUint32(offset + 42, true);
+        const start =
+          local +
+          30 +
+          view.getUint16(local + 26, true) +
+          view.getUint16(local + 28, true);
+        entries.set(
+          name,
+          new TextDecoder().decode(bytes.subarray(start, start + size)),
+        );
+        offset +=
+          46 +
+          length +
+          view.getUint16(offset + 30, true) +
+          view.getUint16(offset + 32, true);
+      }
+      for (const photo of photos)
+        assert.equal(entries.get(photo.name), await photo.text());
+      assert.equal(el("selected-count").textContent, "선택한 파일 3개");
+      await selectExtensions(el, [".jpg", ".cr3", ".nef"]);
+      await el("search").fire("click");
+      assert.equal(el("selected-count").textContent, "선택한 파일 3개");
+    } finally {
+      h.restore();
+    }
+  });
+}

@@ -104,9 +104,7 @@ function refreshSaveOptions() {
 }
 function outputFiles() {
   const files = selectedFiles(state.rows);
-  return state.extensions !== null
-    ? expandPhotoPairs(files, state.pairs)
-    : files;
+  return expandPhotoPairs(files, state.pairs);
 }
 function updateSummary() {
   refreshSaveOptions();
@@ -157,13 +155,9 @@ function render() {
     content.append(node("span", row.item, "file-name"));
     if (row.chosen) {
       content.append(node("span", row.chosen.path, "file-path"));
-      if (state.extensions !== null) {
-        for (const file of state.pairs.get(row.chosen.path) ?? []) {
-          if (file !== row.chosen)
-            content.append(
-              node("span", `함께 저장: ${file.path}`, "file-path"),
-            );
-        }
+      for (const file of state.pairs.get(row.chosen.path) ?? []) {
+        if (file !== row.chosen)
+          content.append(node("span", `함께 저장: ${file.path}`, "file-path"));
       }
     }
     if (row.candidates.length > 1 || row.requiresConfirmation) {
@@ -386,10 +380,10 @@ $("search").addEventListener("click", async () => {
   progress(0, "파일 검색 중...");
   try {
     await new Promise((resolve) => setTimeout(resolve, 0));
-    state.pairs =
-      state.extensions === null
-        ? new Map()
-        : buildFormatGroups(state.files, state.extensions);
+    state.pairs = buildFormatGroups(
+      state.files,
+      state.extensions ?? new Set(availableExtensions()),
+    );
     const index = buildIndex(
         state.files,
         state.extensions === null ? "" : [...state.extensions],
@@ -401,9 +395,7 @@ $("search").addEventListener("click", async () => {
     for (let i = 0; i < items.length; i++) {
       if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
       const row = matchItem(index, items[i]);
-      rows.push(
-        state.extensions !== null ? resolvePhotoPair(row, state.pairs) : row,
-      );
+      rows.push(resolvePhotoPair(row, state.pairs));
       if (i % 300 === 0) {
         progress((i / items.length) * 100, "파일 검색 중...");
         await new Promise((resolve) => setTimeout(resolve, 0));
