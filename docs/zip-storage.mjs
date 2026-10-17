@@ -1,3 +1,4 @@
+import { assertSafeDestination } from "./save-policy.mjs";
 import {
   assertDistinctDirectories,
   createResultDirectory,
@@ -49,7 +50,7 @@ export async function saveZipToDirectory(
   return withCopyLock(
     async () => {
       check();
-      if (source) await assertDistinctDirectories(source, destination);
+      await assertSafeDestination(source, destination);
       const folder = await createResultDirectory(destination, {
         cancelled: stopped,
       });

@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=neutral-summary-1" />
-    <script type="module" src="./app.mjs?v=result-summary-1"></script>
+    <script type="module" src="./app.mjs?v=safety-notice-1"></script>
   </head>
   <body>
     <header>
@@ -180,6 +180,7 @@
               브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일
               다운로드 허용이 필요할 수 있습니다.
             </p>
+            <p class="hint">폴더 직접 저장·대용량 ZIP 저장은 ‘폴더 직접 복사 모드로 열기’로 원본을 선택해야 합니다. 원본과 저장 폴더는 서로 포함되지 않는 별도 폴더여야 합니다.</p>
             <p id="copy-output" class="hint" hidden></p>
             <div class="save-actions">
               <button id="copy" class="primary" disabled>
@@ -198,6 +199,7 @@
       <section class="activity">
         <div>
           <h2>작업 기록</h2>
+          <button id="diagnostics" class="text-btn" title="앱 버전·브라우저 종류·작업 단계만 저장합니다. 파일 내용·파일명·경로는 포함하지 않습니다.">진단 기록 다운로드</button>
           <span>이번 작업의 진행 상황</span>
         </div>
         <pre id="log" role="log" aria-live="polite">

@@ -56,6 +56,7 @@ function fixture(fault = "") {
   };
   const folder = {
     kind: "directory",
+    resolve: async () => null,
     name: "fresh",
     async *values() {},
     async getFileHandle(name, options) {
@@ -72,6 +73,7 @@ function fixture(fault = "") {
   };
   const destination = {
     kind: "directory",
+    resolve: async () => null,
     name: "output",
     async getDirectoryHandle(name, options) {
       assert.ok(state.held);
@@ -85,6 +87,7 @@ function fixture(fault = "") {
   };
   const source = {
     kind: "directory",
+    resolve: async () => null,
     async isSameEntry() {
       return fault === "same";
     },
