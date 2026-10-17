@@ -1,7 +1,7 @@
 import {
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=storage-fault-1";
+} from "./save-policy.mjs?v=zip-downloads-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -545,12 +545,15 @@ async function exportZip() {
       name: uniqueName(entry.name, occupied),
       file: entry.file,
     }));
-    const disk = Boolean(state.dest || window.showDirectoryPicker);
+    const disk = typeof window.showDirectoryPicker === "function";
     zipSize(entries, disk ? undefined : DOWNLOAD_ZIP_LIMIT);
     diagnostics.record("zip", "location-check");
     // Invoke a folder picker in the click gesture. Never choose an existing file.
     const destination = disk
-      ? state.dest || (await window.showDirectoryPicker({ mode: "readwrite" }))
+      ? await window.showDirectoryPicker({
+          mode: "readwrite",
+          startIn: "downloads",
+        })
       : null;
     if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
     const reportProgress = (index, count, bytes, size) =>

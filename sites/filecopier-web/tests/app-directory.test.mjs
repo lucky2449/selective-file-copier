@@ -1365,3 +1365,56 @@ test("cancelled first-save notice prevents download and diagnostics omit private
     h.restore();
   }
 });
+
+test("ZIP suggests Downloads independently of copy destination and preserves copy selection", async () => {
+  const writes = [],
+    options = [];
+  const makeDestination = (label) => ({
+    kind: "directory",
+    name: label,
+    async getDirectoryHandle(name, opts) {
+      if (!opts?.create) throw new DOMException("Missing", "NotFoundError");
+      return {
+        kind: "directory",
+        name,
+        async *values() {},
+        async getFileHandle(filename, opts) {
+          if (!opts?.create) throw new DOMException("Missing", "NotFoundError");
+          return {
+            getFile: async () => new Blob([]),
+            createWritable: async () => ({
+              write: async () => {},
+              close: async () => writes.push([label, filename]),
+              abort: async () => {},
+            }),
+          };
+        },
+      };
+    },
+  });
+  const copyDest = makeDestination("copy-folder"),
+    zipDest = makeDestination("Downloads");
+  const h = await setup({
+    showDirectoryPicker: async (opts) => {
+      options.push(opts);
+      return options.length === 1 ? copyDest : zipDest;
+    },
+  });
+  try {
+    await searchInput(
+      h.el,
+      [inputFile("source/photo.jpg", "original")],
+      "photo.jpg",
+    );
+    await h.el("destination").fire("click");
+    await h.el("zip").fire("click");
+    assert.deepEqual(options[1], { mode: "readwrite", startIn: "downloads" });
+    assert.deepEqual(writes, [["Downloads", "파일모아.zip"]]);
+    assert.equal(h.el("dest-label").textContent, "copy-folder");
+    assert.equal(h.downloads.length, 0);
+    await h.el("copy").fire("click");
+    assert.deepEqual(writes.at(-1), ["copy-folder", "photo.jpg"]);
+  } finally {
+    h.restore();
+  }
+});
