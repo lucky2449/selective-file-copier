@@ -824,9 +824,9 @@ for (const mode of ["copy", "zip"]) {
         assert.match(h.el("toast").textContent, /성공 2개/);
       } else {
         await h.el("zip").fire("click");
-        assert.equal(h.downloads.length, 0);
-        assert.ok(outputs.has("파일모아.zip"));
-        const bytes = await outputs.get("파일모아.zip").text();
+        assert.equal(h.downloads.length, 1);
+        assert.equal(outputs.size, 0);
+        const bytes = await h.downloads[0].blob.text();
         assert.ok(bytes.includes(jpg.name));
         assert.ok(bytes.includes(raw.name));
         assert.ok(bytes.includes(await jpg.text()));
@@ -1227,34 +1227,33 @@ test("ZIP never requests a writable file handle even when a save picker exists",
   }
 });
 
-for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
-  test(`disk ZIP ${scenario} creates no download and restores controls`, async () => {
-    let picked = 0;
+for (const scenario of ["quota", "denied", "oversize"]) {
+  test(`ZIP temporary storage ${scenario} restores controls without folder picker`, async () => {
+    let opened = 0;
     const h = await setup({
-      showSaveFilePicker: () => assert.fail("Never select an existing file"),
-      showDirectoryPicker: async (options) => {
-        picked++;
-        assert.equal(options.mode, "readwrite");
-        throw new DOMException(
-          "Picker stopped",
-          scenario === "cancel-picker" ? "AbortError" : "NotAllowedError",
-        );
+      navigator: {
+        storage: {
+          getDirectory: async () => {
+            opened++;
+            throw new DOMException(
+              "Storage unavailable",
+              scenario === "quota" ? "QuotaExceededError" : "NotAllowedError",
+            );
+          },
+        },
       },
+      showDirectoryPicker: () => assert.fail("No directory picker for ZIP"),
     });
     try {
-      const original = inputFile("source/photo.CR3", "original");
+      const file = inputFile("source/photo.CR3", "original");
       if (scenario === "oversize")
-        Object.defineProperty(original, "size", {
-          value: 4 * 1024 * 1024 * 1024,
-        });
-      await searchInput(h.el, [original], "photo.CR3");
+        Object.defineProperty(file, "size", { value: 4 * 1024 ** 3 });
+      await searchInput(h.el, [file], "photo.CR3");
       await h.el("zip").fire("click");
-      assert.equal(picked, scenario === "oversize" ? 0 : 1);
+      assert.equal(opened, scenario === "oversize" ? 0 : 1);
       assert.equal(h.downloads.length, 0);
       assert.equal(h.el("zip").disabled, false);
-      assert.equal(await original.text(), "original");
-      if (scenario === "oversize")
-        assert.match(h.el("toast").textContent, /4GB/);
+      assert.equal(await file.text(), "original");
     } finally {
       h.restore();
     }
@@ -1366,7 +1365,7 @@ test("cancelled first-save notice prevents download and diagnostics omit private
   }
 });
 
-test("ZIP suggests Downloads independently of copy destination and preserves copy selection", async () => {
+test("ZIP uses browser download without requesting directory permission and preserves copy selection", async () => {
   const writes = [],
     options = [];
   const makeDestination = (label) => ({
@@ -1408,10 +1407,11 @@ test("ZIP suggests Downloads independently of copy destination and preserves cop
     );
     await h.el("destination").fire("click");
     await h.el("zip").fire("click");
-    assert.deepEqual(options[1], { mode: "readwrite", startIn: "downloads" });
-    assert.deepEqual(writes, [["Downloads", "파일모아.zip"]]);
+    assert.equal(options.length, 1);
+    assert.deepEqual(writes, []);
     assert.equal(h.el("dest-label").textContent, "copy-folder");
-    assert.equal(h.downloads.length, 0);
+    assert.equal(h.downloads.length, 1);
+    assert.equal(h.downloads[0].name, "파일모아.zip");
     await h.el("copy").fire("click");
     assert.deepEqual(writes.at(-1), ["copy-folder", "photo.jpg"]);
   } finally {
