@@ -1,8 +1,7 @@
 import {
   createSaveNotice,
   createDiagnostics,
-  assertSafeDestination,
-} from "./save-policy.mjs";
+} from "./save-policy.mjs?v=optional-source-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -10,7 +9,6 @@ import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
 import {
   assertDistinctDirectories,
   createResultDirectory,
-  selectNativeSource,
 } from "./directory-access.mjs?v=short-time-name-1";
 import { bindSourcePicker } from "./source-picker.mjs";
 import {
@@ -33,7 +31,7 @@ import {
   saveZipToDirectory,
   zipSize,
   DOWNLOAD_ZIP_LIMIT,
-} from "./zip-storage.mjs?v=strict-location-1";
+} from "./zip-storage.mjs?v=optional-source-1";
 const $ = (id) => document.getElementById(id);
 const confirmSave = createSaveNotice(window);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
@@ -84,7 +82,6 @@ function setBusy(value) {
   if (value) $("extension-menu").open = false;
   for (const id of [
     "source",
-    "source-alternative",
     "reset",
     "reference",
     "load-text",
@@ -329,33 +326,6 @@ bindSourcePicker({
   onFiles: (files, name) => acceptSource(files, name),
   onError: report,
 });
-$("source-alternative").hidden = !canChooseDestination;
-if (canChooseDestination)
-  $("source-alternative").addEventListener("click", async () => {
-    try {
-      const selection = await selectNativeSource(
-        (options) => window.showDirectoryPicker(options),
-        {
-          onScanning: () => {
-            state.cancelled = false;
-            setBusy(true);
-            progress(0, "원본 폴더 읽는 중...");
-          },
-          cancelled: () => state.cancelled,
-        },
-      );
-      acceptSource(selection.files, selection.name, selection.handle);
-    } catch (error) {
-      if (error.name === "SecurityError" || error.name === "NotAllowedError") {
-        toast(
-          "폴더 접근이 차단되었습니다. 위의 기본 ‘원본 폴더 선택’ 버튼으로 열면 일반 다운로드로 저장할 수 있습니다.",
-        );
-      } else report(error);
-    } finally {
-      setBusy(false);
-      $("progress-wrap").hidden = true;
-    }
-  });
 $("reference").addEventListener("click", () => $("reference-input").click());
 $("reference-input").addEventListener("change", (event) => {
   if (event.target.files.length) {
@@ -480,7 +450,7 @@ $("destination").addEventListener("click", async () => {
     const dest = await window.showDirectoryPicker({ mode: "readwrite" });
     if (dest?.kind !== "directory")
       throw new Error("저장 폴더를 다시 선택하세요.");
-    await assertSafeDestination(state.source, dest);
+    if (state.source) await assertDistinctDirectories(state.source, dest);
     state.dest = dest;
     $("dest-label").textContent = dest.name;
     updateSummary();
@@ -577,10 +547,6 @@ async function exportZip() {
     }));
     const disk = Boolean(state.dest || window.showDirectoryPicker);
     zipSize(entries, disk ? undefined : DOWNLOAD_ZIP_LIMIT);
-    if (disk && !state.source)
-      throw new Error(
-        "원본 위치를 확인할 수 없어 ZIP 직접 저장을 중단했습니다. ‘폴더 직접 복사 모드로 열기’로 원본을 다시 선택하세요.",
-      );
     diagnostics.record("zip", "location-check");
     // Invoke a folder picker in the click gesture. Never choose an existing file.
     const destination = disk
@@ -672,12 +638,12 @@ async function copyFiles() {
     diagnostics.record("copy", "location-check");
     await withCopyLock(
       async () => {
-        await assertSafeDestination(state.source, state.dest);
+        if (state.source) await assertDistinctDirectories(state.source, state.dest);
         // Every source mode writes only into a new result folder.
         const dest = await createResultDirectory(state.dest, {
           cancelled: () => state.cancelled,
         });
-        await assertSafeDestination(state.source, dest);
+        if (state.source) await assertDistinctDirectories(state.source, dest);
         const outputLabel = `${state.dest.name}/${dest.name}`;
         if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
         $("copy-output").textContent = `이번 저장 위치: ${outputLabel}`;

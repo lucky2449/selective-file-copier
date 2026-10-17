@@ -143,26 +143,6 @@ async function selectExtensions(el, extensions) {
     await input.fire("change");
   }
 }
-async function nativeSearch(el, files, items, extensions = "") {
-  const picker = window.showDirectoryPicker;
-  window.showDirectoryPicker = async () => ({
-    kind: "directory",
-    resolve: async () => null,
-    name: "source",
-    isSameEntry: async () => false,
-    resolve: async () => null,
-    async *values() {
-      for (const file of files)
-        yield { kind: "file", name: file.name, getFile: async () => file };
-    },
-  });
-  await el("source-alternative").fire("click");
-  window.showDirectoryPicker = picker;
-  await selectExtensions(el, extensions);
-  el("items").value = items;
-  await el("search").fire("click");
-}
-
 async function searchInput(el, files, items, extension = "") {
   el("folder-input").files = files;
   await el("folder-input").fire("change");
@@ -232,140 +212,6 @@ test("default downloads original files with unique names, no directory or ZIP pi
   }
 });
 
-test("native selection and explicit copying retain directory identity checks and preserve bytes", async () => {
-  let nextDirectory,
-    pickerError,
-    pickerCalls = 0;
-  const written = [];
-  let destinationReads = 0,
-    createdFiles = 0;
-  const sourceFile = new Blob(["photo"]);
-  const source = {
-    kind: "directory",
-    resolve: async () => null,
-    name: "source",
-    id: "source",
-    async resolve() {
-      return null;
-    },
-    async isSameEntry(other) {
-      return this.id === other.id;
-    },
-    async *values() {
-      yield {
-        kind: "file",
-        name: "photo.jpg",
-        getFile: async () => sourceFile,
-      };
-    },
-  };
-  const destination = {
-    kind: "directory",
-    resolve: async () => null,
-    name: "output",
-    id: "output",
-    async *values() {
-      destinationReads++;
-    },
-    async getDirectoryHandle(name, options) {
-      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
-      return { ...destination, name };
-    },
-    async getFileHandle(name, options) {
-      if (!options?.create) throw new DOMException("Missing", "NotFoundError");
-      assert.match(this.name, /^\d{8}_\d{6}(?:_\d+)?$/);
-      createdFiles++;
-      assert.equal(name, "photo.jpg");
-      return {
-        getFile: async () => new Blob([]),
-        createWritable: async () => ({
-          write: async (bytes) => written.push(bytes),
-          close: async () => {},
-        }),
-      };
-    },
-  };
-  const h = await setup({
-    showDirectoryPicker: async () => {
-      pickerCalls++;
-      if (pickerError) throw pickerError;
-      return nextDirectory;
-    },
-    showSaveFilePicker: () => assert.fail("Must not export ZIP"),
-  });
-  const { el, downloads } = h;
-  try {
-    let inputClicks = 0;
-    el("folder-input").click = () => {
-      inputClicks++;
-    };
-    pickerError = new DOMException("Blocked", "SecurityError");
-    await el("source-alternative").fire("click");
-    assert.match(el("toast").textContent, /기본 ‘원본 폴더 선택’/);
-    assert.equal(
-      inputClicks,
-      0,
-      "Fallback must require its own click activation",
-    );
-    pickerError = new DOMException("Cancelled", "AbortError");
-    await el("source-alternative").fire("click");
-    assert.equal(el("destination").disabled, false);
-    pickerError = null;
-    nextDirectory = source;
-    await el("source-alternative").fire("click");
-    await selectExtensions(el, "");
-    el("items").value = "photo.jpg";
-    await el("search").fire("click");
-    const beforeDownload = pickerCalls;
-    await el("copy").fire("click");
-    assert.equal(
-      pickerCalls,
-      beforeDownload,
-      "Native source must still default to ordinary download",
-    );
-    assert.equal(downloads.length, 1);
-    assert.equal(createdFiles, 0);
-
-    nextDirectory = destination;
-    await el("destination").fire("click");
-    assert.equal(el("copy").textContent, "선택 파일 복사");
-    const beforeCopy = pickerCalls;
-    await el("copy").fire("click");
-    assert.equal(pickerCalls, beforeCopy);
-    assert.equal(createdFiles, 1);
-    assert.equal(await new Blob(written).text(), "photo");
-    assert.equal(
-      downloads.length,
-      1,
-      "Explicit destination must copy rather than download",
-    );
-
-    nextDirectory = source;
-    await el("destination").fire("click");
-    assert.match(el("toast").textContent, /원본과 저장 폴더/);
-    assert.equal(el("dest-label").textContent, "output");
-    source.isSameEntry = async () => true;
-    destinationReads = 0;
-    createdFiles = 0;
-    await el("copy").fire("click");
-    assert.equal(destinationReads, 0);
-    assert.equal(createdFiles, 0);
-    assert.equal(
-      downloads.length,
-      1,
-      "Rejected direct copy must not silently download",
-    );
-    await el("destination-reset").fire("click");
-    assert.equal(el("copy").textContent, "선택 파일 다운로드");
-    await el("source").fire("click");
-    assert.equal(inputClicks, 1);
-    await searchInput(el, [inputFile("fallback/other.jpg")], "other.jpg");
-    assert.equal(el("destination").disabled, false);
-    assert.equal(el("copy").disabled, false);
-  } finally {
-    h.restore();
-  }
-});
 
 test("browsers without directory APIs use standard source selection and ordinary downloads", async () => {
   const h = await setup();
@@ -376,7 +222,6 @@ test("browsers without directory APIs use standard source selection and ordinary
       inputClicks++;
     };
     assert.equal(el("source").disabled, false);
-    assert.equal(el("source-alternative").hidden, true);
     assert.equal(el("destination").disabled, true);
     await el("source").fire("click");
     assert.equal(inputClicks, 1);
@@ -437,32 +282,102 @@ test("failed download requests release their URLs, report failure, and allow rem
   }
 });
 
-test("standard input blocks unverified direct destination and retains downloads", async () => {
-  let created = 0;
+test("standard input can choose a destination before and after downloading and copy into isolated result folders", async () => {
+  let nextDirectory,
+    pickerError,
+    pickerCalls = 0,
+    creations = 0;
+  const outputs = [];
+  const parent = {
+    kind: "directory",
+    name: "output",
+    getFileHandle: () =>
+      assert.fail("Never write into the unverified source/destination parent"),
+    async getDirectoryHandle(name, options) {
+      if (!options?.create) {
+        if (outputs.some((output) => output.name === name))
+          return { kind: "directory", name };
+        throw new DOMException("Missing", "NotFoundError");
+      }
+      creations++;
+      const bytes = [];
+      const output = { name, bytes };
+      outputs.push(output);
+      return {
+        kind: "directory",
+        name,
+        async *values() {},
+        async getFileHandle(fileName, create) {
+          if (!create?.create)
+            throw new DOMException("Missing", "NotFoundError");
+          assert.equal(fileName, "photo.jpg");
+          return {
+            getFile: async () => new Blob([]),
+            createWritable: async () => ({
+              write: async (chunk) => bytes.push(chunk),
+              close: async () => {},
+            }),
+          };
+        },
+      };
+    },
+  };
   const h = await setup({
-    showDirectoryPicker: async () => ({
-      kind: "directory",
-      name: "output",
-      resolve: async () => null,
-      getDirectoryHandle: () => {
-        created++;
-      },
-    }),
+    showDirectoryPicker: async () => {
+      pickerCalls++;
+      if (pickerError) throw pickerError;
+      return nextDirectory;
+    },
   });
   try {
+    assert.equal(
+      h.el("destination").disabled,
+      false,
+      "Destination button must be clickable even before source selection",
+    );
     await searchInput(
       h.el,
-      [inputFile("source/photo.jpg", "original")],
+      [inputFile("source/photo.jpg", "unchanged bytes")],
       "photo.jpg",
     );
-    await h.el("destination").fire("click");
-    assert.match(h.el("toast").textContent, /原本|원본 위치/);
-    assert.equal(created, 0);
-    await h.el("zip").fire("click");
-    assert.equal(h.downloads.length, 0);
-    assert.equal(created, 0);
     await h.el("copy").fire("click");
     assert.equal(h.downloads.length, 1);
+    assert.equal(
+      h.el("destination").disabled,
+      false,
+      "Downloading must not disable subsequent destination selection",
+    );
+    nextDirectory = parent;
+    await h.el("destination").fire("click");
+    assert.equal(h.el("dest-label").textContent, "output");
+    assert.equal(h.el("copy").textContent, "선택 파일 복사");
+    assert.equal(
+      creations,
+      0,
+      "Choosing a parent must not create an output folder yet",
+    );
+    await h.el("copy").fire("click");
+    assert.equal(pickerCalls, 1);
+    assert.equal(creations, 1);
+    assert.equal(await new Blob(outputs[0].bytes).text(), "unchanged bytes");
+    assert.match(h.el("copy-output").textContent, /output\/\d{8}_\d{6}/);
+    assert.equal(
+      h.downloads.length,
+      1,
+      "Explicit copy must not fall back to download",
+    );
+    await h.el("copy").fire("click");
+    assert.equal(creations, 2);
+    assert.notEqual(outputs[0].name, outputs[1].name);
+    pickerError = new DOMException("Cancelled", "AbortError");
+    await h.el("destination").fire("click");
+    assert.equal(h.el("dest-label").textContent, "output");
+    pickerError = new DOMException("Denied", "NotAllowedError");
+    await h.el("destination").fire("click");
+    assert.equal(h.el("dest-label").textContent, "output");
+    assert.match(h.el("toast").textContent, /접근할 수 없습니다/);
+    await h.el("destination-reset").fire("click");
+    assert.equal(h.el("copy").textContent, "선택 파일 다운로드");
   } finally {
     h.restore();
   }
@@ -527,7 +442,6 @@ for (const failure of [
     let h;
     const parent = {
       kind: "directory",
-      resolve: async () => null,
       name: "output",
       removeEntry: () => assert.fail("Must never delete"),
       getFileHandle: () =>
@@ -537,7 +451,6 @@ for (const failure of [
           throw new DOMException("Missing", "NotFoundError");
         return {
           kind: "directory",
-          resolve: async () => null,
           name,
           async *values() {},
           removeEntry: () => assert.fail("Must never delete partial files"),
@@ -575,7 +488,7 @@ for (const failure of [
     };
     h = await setup({ showDirectoryPicker: async () => parent });
     try {
-      await nativeSearch(h.el, [original], "photo.jpg");
+      await searchInput(h.el, [original], "photo.jpg");
       await h.el("destination").fire("click");
       await h.el("copy").fire("click");
       assert.equal(await original.text(), "original bytes");
@@ -658,7 +571,6 @@ for (const scenario of [
     const win = { location: { origin: "https://lucky2449.github.io" } };
     const parent = {
       kind: "directory",
-      resolve: async () => null,
       name: "output",
       getFileHandle: () => assert.fail("Never write into the parent"),
       async getDirectoryHandle(name, options) {
@@ -666,7 +578,6 @@ for (const scenario of [
           throw new DOMException("Missing", "NotFoundError");
         return {
           kind: "directory",
-          resolve: async () => null,
           name,
           async *values() {},
           async getFileHandle(fileName, options) {
@@ -703,7 +614,7 @@ for (const scenario of [
       const source = Array.from({ length: count }, (_, i) =>
         inputFile(`source/PRIVATE_${i}.jpg`, "original"),
       );
-      await nativeSearch(
+      await searchInput(
         h.el,
         source,
         source.map((file) => file.name).join("\n"),
@@ -820,13 +731,11 @@ for (const mode of ["copy", "zip"]) {
     };
     const destination = {
       kind: "directory",
-      resolve: async () => null,
       name: "output",
       async getDirectoryHandle(name, options) {
         if (!options?.create) return missing();
         return {
           kind: "directory",
-          resolve: async () => null,
           name,
           async *values() {},
           async getFileHandle(name, options) {
@@ -851,7 +760,7 @@ for (const mode of ["copy", "zip"]) {
     try {
       const jpg = inputFile("source/IMG_0001.JPG", "jpeg-pair-original");
       const raw = inputFile("source/IMG_0001.CR3", "raw-pair-original");
-      await nativeSearch(h.el, [jpg, raw], "1", [".jpg", ".cr3"]);
+      await searchInput(h.el, [jpg, raw], "1", [".jpg", ".cr3"]);
       assert.equal(h.el("selected-count").textContent, "선택한 파일 2개");
       if (mode === "copy") {
         await h.el("destination").fire("click");
@@ -1209,7 +1118,6 @@ for (const scenario of ["cancel-waiting", "unsupported"]) {
       navigator: { locks },
       showDirectoryPicker: async () => ({
         kind: "directory",
-        resolve: async () => null,
         name: "output",
         async getDirectoryHandle() {
           created++;
@@ -1218,7 +1126,7 @@ for (const scenario of ["cancel-waiting", "unsupported"]) {
       }),
     });
     try {
-      await nativeSearch(
+      await searchInput(
         h.el,
         [inputFile("source/photo.jpg", "original")],
         "photo.jpg",
@@ -1286,7 +1194,7 @@ for (const scenario of ["cancel-picker", "denied-picker", "oversize"]) {
         Object.defineProperty(original, "size", {
           value: 4 * 1024 * 1024 * 1024,
         });
-      await nativeSearch(h.el, [original], "photo.CR3");
+      await searchInput(h.el, [original], "photo.CR3");
       await h.el("zip").fire("click");
       assert.equal(picked, scenario === "oversize" ? 0 : 1);
       assert.equal(h.downloads.length, 0);

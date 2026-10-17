@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   createSaveNotice,
   createDiagnostics,
-  assertSafeDestination,
 } from "../dist/save-policy.mjs";
 test("notice cancels without acceptance, persists acceptance and tolerates blocked storage", () => {
   let calls = 0,
@@ -32,40 +31,6 @@ test("notice cancels without acceptance, persists acceptance and tolerates block
     },
   });
   assert.equal(blocked(), true);
-});
-for (const scenario of [
-  "no-source",
-  "same",
-  "source-child",
-  "source-parent",
-  "unverifiable",
-  "denied",
-]) {
-  test(`strict location guard rejects ${scenario}`, async () => {
-    const source = {
-      isSameEntry: async () => scenario === "same",
-      resolve: async () => (scenario === "source-child" ? ["child"] : null),
-    };
-    const destination = {
-      resolve: async () => {
-        if (scenario === "denied") throw new Error("denied");
-        return scenario === "source-parent" ? ["source"] : null;
-      },
-    };
-    if (scenario === "unverifiable") delete destination.resolve;
-    await assert.rejects(
-      assertSafeDestination(
-        scenario === "no-source" ? null : source,
-        destination,
-      ),
-    );
-  });
-}
-test("strict location guard allows verified disjoint folders", async () => {
-  await assertSafeDestination(
-    { isSameEntry: async () => false, resolve: async () => null },
-    { resolve: async () => null },
-  );
 });
 test("diagnostics whitelist excludes paths, raw errors, full UA and caps history", () => {
   const d = createDiagnostics("Chrome/123 secret-user-info");

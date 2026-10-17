@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=neutral-summary-1" />
-    <script type="module" src="./app.mjs?v=short-save-hint-1"></script>
+    <script type="module" src="./app.mjs?v=optional-source-1"></script>
   </head>
   <body>
     <header>
@@ -58,9 +58,7 @@
             ><strong id="source-name">파일이 있는 폴더를 선택하세요</strong
             ><span id="source-detail">하위 폴더의 파일까지 함께 검색합니다</span
             ><b>폴더 선택 ↗</b></button
-          ><button id="source-alternative" class="text-btn source-alternative">
-            폴더 직접 복사 모드로 열기
-          </button>
+          >
           <input
             id="folder-input"
             type="file"
@@ -178,7 +176,7 @@
             <p id="save-hint" class="hint">
               저장 폴더 미지정 시 브라우저 다운로드로 저장합니다.
             </p>
-            <p class="hint">직접 저장·대용량 ZIP은 ‘폴더 직접 복사 모드’에서 원본과 분리된 폴더에 저장하세요.</p>
+            
             <p id="copy-output" class="hint" hidden></p>
             <div class="save-actions">
               <button id="copy" class="primary" disabled>

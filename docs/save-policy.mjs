@@ -1,4 +1,4 @@
-export const APP_VERSION = "2026.10.17-safety-1";
+export const APP_VERSION = "2026.10.17-save-2";
 export const NOTICE_VERSION = "1";
 export function createSaveNotice(env) {
   let accepted = false;
@@ -20,26 +20,6 @@ export function createSaveNotice(env) {
     } catch {}
     return true;
   };
-}
-export async function assertSafeDestination(source, destination) {
-  if (
-    !source ||
-    typeof source.resolve !== "function" ||
-    typeof source.isSameEntry !== "function"
-  )
-    throw new Error(
-      "원본 위치를 확인할 수 없어 직접 저장을 중단했습니다. ‘폴더 직접 복사 모드로 열기’로 원본을 다시 선택하거나 일반 다운로드를 사용하세요.",
-    );
-  if (!destination || typeof destination.resolve !== "function")
-    throw new Error("저장 위치를 확인할 수 없어 직접 저장을 중단했습니다.");
-  if (
-    (await source.isSameEntry(destination)) ||
-    (await source.resolve(destination)) !== null ||
-    (await destination.resolve(source)) !== null
-  )
-    throw new Error(
-      "원본과 저장 폴더가 같거나 서로 포함되어 있습니다. 서로 분리된 폴더를 선택하세요.",
-    );
 }
 export function createDiagnostics(userAgent = "") {
   const browser = /Edg\//.test(userAgent)
