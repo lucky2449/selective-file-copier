@@ -114,7 +114,7 @@ function refreshSaveOptions() {
   $("destination-reset").disabled = state.busy;
   $("save-hint").textContent = state.dest
     ? "선택한 저장 폴더 안에 새 결과 폴더를 만들어 복사합니다. 원본 파일은 변경하지 않습니다."
-    : "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.";
+    : "저장 폴더 미지정 시 브라우저 다운로드로 저장합니다.";
 }
 function outputFiles() {
   const files = selectedFiles(state.rows);

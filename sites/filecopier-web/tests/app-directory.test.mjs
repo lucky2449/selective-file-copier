@@ -219,7 +219,7 @@ test("default downloads original files with unique names, no directory or ZIP pi
     assert.doesNotMatch(el("toast").textContent, /저장 완료|복사 완료/);
     assert.equal(
       el("save-hint").textContent,
-      "미지정 시 각 파일을 일반 다운로드로 저장합니다. 저장 위치는 브라우저 설정을 따르며 새 폴더는 만들지 않습니다. 여러 파일 다운로드 허용이 필요할 수 있습니다.",
+      "저장 폴더 미지정 시 브라우저 다운로드로 저장합니다.",
     );
     assert.equal(el("copy-output").hidden, true);
     assert.equal(cleanup.length, 2);
