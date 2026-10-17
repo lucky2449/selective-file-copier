@@ -212,7 +212,6 @@ test("default downloads original files with unique names, no directory or ZIP pi
   }
 });
 
-
 test("browsers without directory APIs use standard source selection and ordinary downloads", async () => {
   const h = await setup();
   const { el, downloads } = h;
@@ -417,6 +416,11 @@ for (const failure of [
   "abort",
   "read",
   "read-midway",
+  "read-short",
+  "read-long",
+  "quota",
+  "permission",
+  "disconnected",
 ]) {
   test(`failed copy (${failure}) preserves originals and never deletes output entries`, async () => {
     const original = inputFile("source/photo.jpg", "original bytes");
@@ -435,6 +439,18 @@ for (const failure of [
         });
       };
     }
+    if (["read-short", "read-long"].includes(failure)) {
+      original.stream = () =>
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new Uint8Array(failure === "read-short" ? 3 : original.size + 1),
+            );
+            c.close();
+          },
+        });
+    }
+    let recovered = false;
     const existing = new Blob(["existing destination bytes"]);
     let commits = 0,
       aborts = 0,
@@ -466,6 +482,18 @@ for (const failure of [
                   throw new DOMException("Quota", "QuotaExceededError");
                 return {
                   async write() {
+                    if (
+                      !recovered &&
+                      ["quota", "permission", "disconnected"].includes(failure)
+                    )
+                      throw new DOMException(
+                        "Injected storage fault",
+                        {
+                          quota: "QuotaExceededError",
+                          permission: "NotAllowedError",
+                          disconnected: "NotFoundError",
+                        }[failure],
+                      );
                     if (["write", "abort"].includes(failure))
                       throw new Error("Disk write failed");
                     if (failure === "cancel")
@@ -503,11 +531,36 @@ for (const failure of [
       assert.match(h.el("log").textContent, /자동 삭제하지 않습니다/);
       if (failure === "race") assert.equal(attempts, 0);
       if (
-        ["write", "close", "cancel", "abort", "read", "read-midway"].includes(
-          failure,
-        )
+        [
+          "write",
+          "close",
+          "cancel",
+          "abort",
+          "read",
+          "read-midway",
+          "read-short",
+          "read-long",
+          "quota",
+          "permission",
+          "disconnected",
+        ].includes(failure)
       )
         assert.equal(aborts, 1);
+      if (["quota", "permission", "disconnected"].includes(failure)) {
+        assert.match(h.el("toast").textContent, /성공 0개 \/ 실패 1개/);
+        await h.el("diagnostics").fire("click");
+        const diagnostic = JSON.parse(await h.downloads.at(-1).blob.text());
+        assert.ok(
+          diagnostic.entries.some(
+            (e) => e.mode === "copy" && e.stage === "failed",
+          ),
+        );
+        recovered = true;
+        await h.el("copy").fire("click");
+        assert.equal(commits, 1);
+        assert.match(h.el("toast").textContent, /성공 1개 \/ 실패 0개/);
+        assert.equal(await original.text(), "original bytes");
+      }
     } finally {
       h.restore();
     }

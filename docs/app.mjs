@@ -1,7 +1,7 @@
 import {
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=optional-source-1";
+} from "./save-policy.mjs?v=storage-fault-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -638,7 +638,8 @@ async function copyFiles() {
     diagnostics.record("copy", "location-check");
     await withCopyLock(
       async () => {
-        if (state.source) await assertDistinctDirectories(state.source, state.dest);
+        if (state.source)
+          await assertDistinctDirectories(state.source, state.dest);
         // Every source mode writes only into a new result folder.
         const dest = await createResultDirectory(state.dest, {
           cancelled: () => state.cancelled,
@@ -691,6 +692,10 @@ async function copyFiles() {
                   throw new DOMException("작업 취소", "AbortError");
                 const { done, value } = await reader.read();
                 if (done) break;
+                if (bytes + value.byteLength > file.size)
+                  throw new Error(
+                    "읽은 데이터가 원본 파일 크기를 초과하여 복사를 중단했습니다. 원본을 다시 선택하세요.",
+                  );
                 await writer.write(value);
                 bytes += value.byteLength;
                 progress(
@@ -705,6 +710,10 @@ async function copyFiles() {
             }
             if (state.cancelled)
               throw new DOMException("작업 취소", "AbortError");
+            if (bytes !== file.size)
+              throw new Error(
+                "읽은 데이터와 원본 파일 크기가 달라 복사를 중단했습니다. 원본을 다시 선택하세요.",
+              );
             await writer.close();
             success++;
             log(`복사됨: ${entry.name} → ${newName}`);
