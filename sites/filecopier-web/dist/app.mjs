@@ -4,7 +4,7 @@ import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=operation-log-1";
+} from "./save-policy.mjs?v=log-notice-2";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -31,12 +31,15 @@ import {
 } from "./photo-pairs.mjs?v=selected-formats-1";
 import { prepareZipDownload } from "./zip-download.mjs?v=operation-log-1";
 const $ = (id) => document.getElementById(id);
-const confirmSave = createSaveNotice(window);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
 const operationLogger = createOperationLogger({
   window,
   config: operationLogConfig,
   appVersion: APP_VERSION,
+});
+const confirmSave = createSaveNotice(window, {
+  operationLogsEnabled: operationLogger.enabled,
+  retentionDays: operationLogConfig.retentionDays,
 });
 if (operationLogger.enabled) {
   $("operation-log-notice").hidden = false;

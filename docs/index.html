@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=extension-chips-1" />
-    <script type="module" src="./app.mjs?v=operation-log-live-1"></script>
+    <script type="module" src="./app.mjs?v=log-notice-2"></script>
   </head>
   <body>
     <header>
@@ -212,7 +212,9 @@
         자세한 사항은 <a href="https://policies.google.com/privacy/partners?hl=ko" target="_blank" rel="noopener noreferrer">Google의 정보 처리 안내</a>와 <a href="https://tools.google.com/dlpage/gaoptout?hl=ko" target="_blank" rel="noopener noreferrer">통계 수집 거부 방법</a>을 확인해 주세요.
       </p>
       <p id="operation-log-notice" class="hint" hidden>
-        오류 확인과 분쟁 대응을 위해 접속·작업 시작·종료 기록(임시 작업 ID, 처리 수량·용량, 오류 코드, 앱·브라우저 버전, 시각)을 운영자의 별도 로그 서버에 전송하고 <span id="operation-log-retention">90일</span>간 보관합니다. 파일 내용·파일명·경로·입력 목록은 전송하지 않습니다. 임시 ID는 실명 확인을 위한 정보가 아닙니다.
+        오류 분석·분쟁 대응을 위해 접속 시부터 임시 접속·작업 ID, 작업 시작·종료·취소·실패 결과, 처리 수량·용량·소요 시간, 오류 코드, 앱·배포·브라우저 버전 및 시각을 Cloudflare 기반 운영자 로그 서버로 전송합니다.<br />
+        기록은 <span id="operation-log-retention">90일</span>을 기준으로 보관 후 순차 정리합니다. 파일 내용·파일명·폴더 경로·입력 목록과 원시 오류 메시지는 전송하지 않습니다. 임시 ID로 실명을 확인하지 않으며, 일반 다운로드·ZIP 기록은 실제 저장 완료가 아닌 요청 내역입니다.<br />
+        이 작업 기록 전송은 GA4 통계와 별도이며, 위 Google 통계 수집 거부 도구는 GA4에만 적용됩니다.
       </p>
     </main>
     <div id="toast" role="status" aria-live="polite" hidden></div>

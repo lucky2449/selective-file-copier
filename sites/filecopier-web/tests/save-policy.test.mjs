@@ -1,9 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  createSaveNotice,
-  createDiagnostics,
-} from "../dist/save-policy.mjs";
+import { createSaveNotice, createDiagnostics } from "../dist/save-policy.mjs";
 test("notice cancels without acceptance, persists acceptance and tolerates blocked storage", () => {
   let calls = 0,
     stored = null,
@@ -42,4 +39,61 @@ test("diagnostics whitelist excludes paths, raw errors, full UA and caps history
   assert.equal(data.entries.length, 200);
   assert.equal(data.browser, "Chrome");
   assert.doesNotMatch(raw, /private|secret-user|Chrome\//);
+});
+
+test("updated save notice reappears after legacy acceptance and describes enabled server collection", () => {
+  let stored = "1",
+    message = "",
+    calls = 0;
+  const env = {
+    localStorage: {
+      getItem: () => stored,
+      setItem: (key, value) => (stored = value),
+    },
+    confirm: (text) => {
+      message = text;
+      calls++;
+      return true;
+    },
+  };
+  const ask = createSaveNotice(env, {
+    operationLogsEnabled: true,
+    retentionDays: 90,
+  });
+  assert.equal(ask(), true);
+  assert.equal(calls, 1);
+  assert.match(message, /接続|접속 시부터/);
+  assert.match(message, /Cloudflare/);
+  assert.match(message, /90일/);
+  assert.match(message, /실제 저장 완료가 아닌/);
+  assert.equal(ask(), true);
+  assert.equal(calls, 1);
+  assert.equal(
+    createSaveNotice(env, { operationLogsEnabled: true, retentionDays: 90 })(),
+    true,
+  );
+  assert.equal(calls, 1);
+  assert.equal(
+    createSaveNotice(env, { operationLogsEnabled: true, retentionDays: 30 })(),
+    true,
+  );
+  assert.equal(calls, 2);
+});
+test("local-only notice does not claim server collection and enabling logs requires new acknowledgement", () => {
+  let stored = null,
+    message = "",
+    calls = 0;
+  const env = {
+    localStorage: { getItem: () => stored, setItem: (k, v) => (stored = v) },
+    confirm: (text) => {
+      message = text;
+      calls++;
+      return true;
+    },
+  };
+  createSaveNotice(env)();
+  assert.doesNotMatch(message, /Cloudflare/);
+  createSaveNotice(env, { operationLogsEnabled: true })();
+  assert.equal(calls, 2);
+  assert.match(message, /Cloudflare/);
 });
