@@ -65,7 +65,11 @@ test("updated save notice reappears after legacy acceptance and describes enable
   assert.match(message, /接続|접속 시부터/);
   assert.match(message, /Cloudflare/);
   assert.match(message, /90일/);
-  assert.match(message, /실제 저장 완료가 아닌/);
+  assert.match(
+    message,
+    /파일 내용·이름·경로·입력 목록은 서버로 보내지 않습니다/,
+  );
+  assert.ok(message.length < 300, "Save warning stays concise");
   assert.equal(ask(), true);
   assert.equal(calls, 1);
   assert.equal(
