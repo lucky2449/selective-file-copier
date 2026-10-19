@@ -1,4 +1,4 @@
-export const APP_VERSION = "2026.10.19-ui-7";
+export const APP_VERSION = "2026.10.19-logs-8";
 export const NOTICE_VERSION = "1";
 export function createSaveNotice(env) {
   let accepted = false;

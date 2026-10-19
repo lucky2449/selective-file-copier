@@ -1,3 +1,6 @@
+function sizeMismatch(message) {
+  return Object.assign(new Error(message), { code: "SIZE_MISMATCH" });
+}
 import { writeZip } from "./zip.mjs";
 import {
   zipSize,
@@ -33,7 +36,7 @@ export async function prepareZipDownload(
           check();
           bytes += chunk.byteLength;
           if (bytes > expected)
-            throw new Error("원본 크기가 달라 ZIP 생성을 중단했습니다.");
+            throw sizeMismatch("원본 크기가 달라 ZIP 생성을 중단했습니다.");
           parts.push(chunk);
         },
       },
@@ -41,7 +44,7 @@ export async function prepareZipDownload(
     );
     check();
     if (bytes !== expected)
-      throw new Error("원본 크기가 달라 ZIP 생성을 중단했습니다.");
+      throw sizeMismatch("원본 크기가 달라 ZIP 생성을 중단했습니다.");
     return new Blob(parts, { type: "application/zip" });
   }
   if (typeof storage.estimate === "function") {
@@ -82,7 +85,7 @@ export async function prepareZipDownload(
         write: async (chunk) => {
           check();
           if (bytes + chunk.byteLength > expected)
-            throw new Error("원본 크기가 달라 ZIP 생성을 중단했습니다.");
+            throw sizeMismatch("원본 크기가 달라 ZIP 생성을 중단했습니다.");
           await writer.write(chunk);
           bytes += chunk.byteLength;
         },
@@ -91,13 +94,13 @@ export async function prepareZipDownload(
     );
     check();
     if (bytes !== expected)
-      throw new Error("원본 크기가 달라 ZIP 생성을 중단했습니다.");
+      throw sizeMismatch("원본 크기가 달라 ZIP 생성을 중단했습니다.");
     await writer.close();
     writer = null;
     check();
     const file = await handle.getFile();
     if (file.size !== expected)
-      throw new Error("ZIP 임시 파일 크기를 확인하지 못했습니다.");
+      throw sizeMismatch("ZIP 임시 파일 크기를 확인하지 못했습니다.");
     // Keep the backing file intact: browser download completion is not observable.
     // Later ZIP creation prunes only our private files older than seven days.
     return file;

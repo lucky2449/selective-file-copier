@@ -28,7 +28,7 @@
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
     <link rel="stylesheet" href="./style.css?v=extension-chips-1" />
-    <script type="module" src="./app.mjs?v=extension-chips-1"></script>
+    <script type="module" src="./app.mjs?v=operation-log-1"></script>
   </head>
   <body>
     <header>
@@ -210,6 +210,9 @@
         선택한 파일의 내용·파일명·폴더 경로·입력 목록은 이용자의 기기에서 처리되며 서버로 전송되지 않습니다.<br />
         서비스 이용 현황 분석과 개선을 위해 Google Analytics(GA4)를 사용합니다. 이 과정에서 쿠키 식별자, 기기·브라우저 정보 및 서비스 이용 기록이 Google에 전송·처리됩니다.<br />
         자세한 사항은 <a href="https://policies.google.com/privacy/partners?hl=ko" target="_blank" rel="noopener noreferrer">Google의 정보 처리 안내</a>와 <a href="https://tools.google.com/dlpage/gaoptout?hl=ko" target="_blank" rel="noopener noreferrer">통계 수집 거부 방법</a>을 확인해 주세요.
+      </p>
+      <p id="operation-log-notice" class="hint" hidden>
+        오류 확인과 분쟁 대응을 위해 접속·작업 시작·종료 기록(임시 작업 ID, 처리 수량·용량, 오류 코드, 앱·브라우저 버전, 시각)을 운영자의 별도 로그 서버에 전송하고 <span id="operation-log-retention">90일</span>간 보관합니다. 파일 내용·파일명·경로·입력 목록은 전송하지 않습니다. 임시 ID는 실명 확인을 위한 정보가 아닙니다.
       </p>
     </main>
     <div id="toast" role="status" aria-live="polite" hidden></div>

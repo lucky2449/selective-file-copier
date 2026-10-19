@@ -1,7 +1,10 @@
+import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
+import { operationLogConfig } from "./operation-log-config.mjs?v=operation-log-1";
 import {
+  APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=extension-chips-1";
+} from "./save-policy.mjs?v=operation-log-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -26,10 +29,30 @@ import {
   resolvePhotoPair,
   expandPhotoPairs,
 } from "./photo-pairs.mjs?v=selected-formats-1";
-import { prepareZipDownload } from "./zip-download.mjs?v=browser-download-1";
+import { prepareZipDownload } from "./zip-download.mjs?v=operation-log-1";
 const $ = (id) => document.getElementById(id);
 const confirmSave = createSaveNotice(window);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
+const operationLogger = createOperationLogger({
+  window,
+  config: operationLogConfig,
+  appVersion: APP_VERSION,
+});
+if (operationLogger.enabled) {
+  $("operation-log-notice").hidden = false;
+  $("operation-log-retention").textContent =
+    `${operationLogConfig.retentionDays}일`;
+  operationLogger.visit();
+}
+function sizeMismatch(message) {
+  return Object.assign(new Error(message), { code: "SIZE_MISMATCH" });
+}
+function operationSize(files) {
+  return {
+    selectedCount: files.length,
+    selectedBytes: files.reduce((sum, entry) => sum + entry.file.size, 0),
+  };
+}
 const analytics = createAnalytics({ measurementId, window, document });
 if (analytics.configured) $("analytics-notice").hidden = false;
 analytics.start();
@@ -487,6 +510,7 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 async function downloadFiles(files) {
+  const operation = operationLogger.begin("download", operationSize(files));
   state.cancelled = false;
   setBusy(true);
   let requested = 0,
@@ -508,6 +532,7 @@ async function downloadFiles(files) {
         log(`다운로드 요청: ${entry.name} → ${name}`);
       } catch (error) {
         failed++;
+        operation.error(error, "download");
         log(`다운로드 요청 실패: ${entry.name} (${error.message})`);
       }
       progress(
@@ -526,6 +551,17 @@ async function downloadFiles(files) {
       `${summary}. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.`,
     );
   } finally {
+    operation.finish({
+      result: state.cancelled
+        ? "cancelled"
+        : failed
+          ? requested
+            ? "partial_failure"
+            : "failed"
+          : "download_requested",
+      requested,
+      failed,
+    });
     setBusy(false);
   }
 }
@@ -535,6 +571,13 @@ async function exportZip() {
   if (!files.length) return;
   if (!confirmSave()) return;
   diagnostics.record("zip", "started");
+  const operation = operationLogger.begin("zip", operationSize(files));
+  let preparedBytes = 0,
+    archived = 0,
+    requested = 0,
+    zipCancelled = false,
+    zipFailed = false;
+  let zipPhase = "prepare";
   state.cancelled = false;
   const controller = new AbortController();
   state.copyAbort = controller;
@@ -558,7 +601,11 @@ async function exportZip() {
         ),
     });
     if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
+    preparedBytes = blob.size;
+    archived = entries.length;
+    zipPhase = "download";
     download(blob, "파일모아.zip");
+    requested = entries.length;
     progress(100, `ZIP 다운로드 요청 완료 · ${entries.length}개 파일`);
     log(`ZIP 다운로드 요청 완료: ${entries.length}개 파일`);
     toast(
@@ -567,6 +614,9 @@ async function exportZip() {
     diagnostics.record("zip", "requested");
     analytics.track("zip_created");
   } catch (error) {
+    zipFailed = true;
+    zipCancelled = error.name === "AbortError";
+    operation.error(error, zipPhase);
     if (error.name === "AbortError") {
       diagnostics.record("zip", "cancelled");
       log("ZIP 저장 취소 · 중단된 출력은 자동 삭제하지 않습니다.");
@@ -577,6 +627,16 @@ async function exportZip() {
       report(error);
     }
   } finally {
+    operation.finish({
+      result: zipCancelled
+        ? "cancelled"
+        : zipFailed
+          ? "failed"
+          : "download_requested",
+      requested,
+      archived,
+      preparedBytes,
+    });
     state.copyAbort = null;
     setBusy(false);
   }
@@ -591,6 +651,11 @@ async function copyFiles() {
     await downloadFiles(files);
     return;
   }
+  const operation = operationLogger.begin("copy", operationSize(files));
+  let writtenBytes = 0,
+    phase = "location-check",
+    operationError = false,
+    operationCancelled = false;
   state.cancelled = false;
   setBusy(true);
   const controller = new AbortController();
@@ -645,22 +710,26 @@ async function copyFiles() {
                 throw error;
               }
             }
+            phase = "open";
             writer = await openCopyWriter(dest, newName, {
               source: state.source,
               cancelled: () => state.cancelled,
             });
+            phase = "read";
             const reader = file.stream().getReader();
             let bytes = 0;
             try {
               while (true) {
                 if (state.cancelled)
                   throw new DOMException("작업 취소", "AbortError");
+                phase = "read";
                 const { done, value } = await reader.read();
                 if (done) break;
                 if (bytes + value.byteLength > file.size)
-                  throw new Error(
+                  throw sizeMismatch(
                     "읽은 데이터가 원본 파일 크기를 초과하여 복사를 중단했습니다. 원본을 다시 선택하세요.",
                   );
+                phase = "write";
                 await writer.write(value);
                 bytes += value.byteLength;
                 progress(
@@ -676,17 +745,23 @@ async function copyFiles() {
             if (state.cancelled)
               throw new DOMException("작업 취소", "AbortError");
             if (bytes !== file.size)
-              throw new Error(
+              throw sizeMismatch(
                 "읽은 데이터와 원본 파일 크기가 달라 복사를 중단했습니다. 원본을 다시 선택하세요.",
               );
+            phase = "close";
             await writer.close();
+            writtenBytes += bytes;
             success++;
             log(`복사됨: ${entry.name} → ${newName}`);
           } catch (error) {
             if (writer) await writer.abort().catch(() => {});
             if (newName)
               log(`중단된 저장 대상은 자동 삭제하지 않습니다: ${newName}`);
-            if (error.name === "AbortError") break;
+            operation.error(error, phase);
+            if (error.name === "AbortError") {
+              operationCancelled = true;
+              break;
+            }
             failed++;
             log(`복사 실패: ${entry.name} (${error.message})`);
           }
@@ -724,6 +799,9 @@ async function copyFiles() {
       },
     );
   } catch (error) {
+    operationError = true;
+    operationCancelled = error.name === "AbortError";
+    operation.error(error, phase);
     if (error.name === "AbortError") {
       diagnostics.record("copy", "cancelled");
       log("저장 위치 선택 또는 복사를 취소했습니다.");
@@ -739,6 +817,19 @@ async function copyFiles() {
       );
     } else report(error);
   } finally {
+    operation.finish({
+      result:
+        state.cancelled || operationCancelled
+          ? "cancelled"
+          : operationError || failed
+            ? success
+              ? "partial_failure"
+              : "failed"
+            : "success",
+      succeeded: success,
+      failed,
+      writtenBytes,
+    });
     if (!state.cancelled && success + failed < files.length)
       diagnostics.record("copy", "failed");
     // One summary per copy operation; GA4 user metrics deduplicate visitors.

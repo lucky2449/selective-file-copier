@@ -26,3 +26,9 @@ venv/
 *.tar.gz
 sites/filecopier-web/tests/verified.zip
 sites/filecopier-web/tests/fixtures/
+
+# Local log-server deployment credentials and state
+server/operation-logs/wrangler.toml
+server/operation-logs/.wrangler/
+.dev.vars
+.dev.vars.*

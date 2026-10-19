@@ -16,7 +16,7 @@ function run(args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-for (const directory of [appDirectory, testsDirectory, "scripts"]) {
+for (const directory of [appDirectory, testsDirectory, "scripts", "server/operation-logs"]) {
   for (const file of await readdir(path.join(root, directory))) {
     if (file.endsWith(".mjs")) run(["--check", path.join(directory, file)]);
   }

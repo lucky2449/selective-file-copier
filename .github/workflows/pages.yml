@@ -29,6 +29,8 @@ jobs:
         run: npm run sync:pages
       - name: Validate source and run regression tests
         run: npm run check
+      - name: Stamp deployed build ID
+        run: node scripts/stamp-operation-build.mjs
       - name: Upload site artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
