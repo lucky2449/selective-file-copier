@@ -143,14 +143,49 @@ export default {
     }
   },
   async scheduled(controller, env, ctx) {
-    // Bounded daily retention cleanup; retention changes require updating the site notice too.
-    const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
-    ctx.waitUntil(
-      env.DB.prepare(
-        "DELETE FROM operation_records WHERE record_id IN (SELECT record_id FROM operation_records WHERE received_at < ? ORDER BY received_at LIMIT 5000)",
-      )
-        .bind(cutoff)
-        .run(),
-    );
+    ctx.waitUntil(runRetention(env));
   },
 };
+export async function runRetention(env, now = new Date()) {
+  const runId = crypto.randomUUID();
+  const startedAt = now.toISOString();
+  const cutoff = new Date(now.getTime() - 90 * 86400000).toISOString();
+  await env.DB.prepare(
+    "INSERT INTO maintenance_runs(run_id,started_at,status) VALUES(?,?,'running')",
+  )
+    .bind(runId, startedAt)
+    .run();
+  try {
+    const result = await env.DB.prepare(
+      "DELETE FROM operation_records WHERE record_id IN (SELECT record_id FROM operation_records WHERE received_at < ? ORDER BY received_at LIMIT 5000)",
+    )
+      .bind(cutoff)
+      .run();
+    await env.DB.prepare(
+      `UPDATE maintenance_runs SET finished_at=?,status='success',rows_deleted=?,
+      expired_remaining=(SELECT count(*) FROM operation_records WHERE received_at < ?),database_size_bytes=? WHERE run_id=?`,
+    )
+      .bind(
+        new Date().toISOString(),
+        result.meta.changes,
+        cutoff,
+        result.meta.size_after ?? null,
+        runId,
+      )
+      .run();
+    // Keep only recent maintenance summaries, separate from 90-day client records.
+    await env.DB.prepare(
+      "DELETE FROM maintenance_runs WHERE started_at < ? AND run_id <> ?",
+    )
+      .bind(new Date(now.getTime() - 7 * 86400000).toISOString(), runId)
+      .run();
+  } catch (error) {
+    await env.DB.prepare(
+      "UPDATE maintenance_runs SET finished_at=?,status='failed',error_code='RETENTION_FAILED' WHERE run_id=?",
+    )
+      .bind(new Date().toISOString(), runId)
+      .run()
+      .catch(() => {});
+    throw error;
+  }
+}

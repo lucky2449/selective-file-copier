@@ -13,3 +13,15 @@ CREATE TABLE IF NOT EXISTS operation_records (
  UNIQUE(session_id, operation_id, sequence)
 );
 CREATE INDEX IF NOT EXISTS operation_records_received ON operation_records(received_at);
+
+CREATE TABLE IF NOT EXISTS maintenance_runs (
+ run_id TEXT PRIMARY KEY,
+ started_at TEXT NOT NULL,
+ finished_at TEXT,
+ status TEXT NOT NULL CHECK(status IN ('running','success','failed')),
+ rows_deleted INTEGER NOT NULL DEFAULT 0,
+ expired_remaining INTEGER,
+ database_size_bytes INTEGER,
+ error_code TEXT
+);
+CREATE INDEX IF NOT EXISTS maintenance_runs_started ON maintenance_runs(started_at);

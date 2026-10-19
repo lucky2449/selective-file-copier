@@ -7,7 +7,10 @@ import {
   classifyOperationError,
 } from "../dist/operation-log.mjs";
 import { validateOperation } from "../dist/operation-schema.mjs";
-import worker, { signRecord } from "../../../server/operation-logs/worker.mjs";
+import worker, {
+  signRecord,
+  runRetention,
+} from "../../../server/operation-logs/worker.mjs";
 const uuid = () => crypto.randomUUID();
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 function payload() {
@@ -414,4 +417,127 @@ test("collector rejects inconsistent success claims", async (t) => {
   const value = payload();
   value.result = "success";
   assert.equal((await send(value)).status, 400);
+});
+
+test("retention records successful execution and remaining backlog without deleting recent records", async (t) => {
+  const { db, env, send } = await serverFixture(t);
+  await send();
+  db.prepare("UPDATE operation_records SET received_at=?").run(
+    "2020-01-01T00:00:00.000Z",
+  );
+  await send();
+  await runRetention(env);
+  const run = db.prepare("SELECT * FROM maintenance_runs").get();
+  assert.equal(run.status, "success");
+  assert.equal(run.rows_deleted, 1);
+  assert.equal(run.expired_remaining, 0);
+  assert.ok(run.finished_at);
+  assert.equal(
+    db.prepare("SELECT count(*) n FROM operation_records").get().n,
+    1,
+  );
+});
+
+test("retention failure is recorded and rethrown without removing records", async (t) => {
+  const { db, env, send } = await serverFixture(t);
+  await send();
+  const prepare = env.DB.prepare.bind(env.DB);
+  env.DB.prepare = (sql) => {
+    if (sql.startsWith("DELETE FROM operation_records"))
+      throw new Error("simulated D1 failure");
+    return prepare(sql);
+  };
+  await assert.rejects(runRetention(env), /simulated/);
+  const run = db.prepare("SELECT * FROM maintenance_runs").get();
+  assert.equal(run.status, "failed");
+  assert.equal(run.error_code, "RETENTION_FAILED");
+  assert.equal(
+    db.prepare("SELECT count(*) n FROM operation_records").get().n,
+    1,
+  );
+});
+
+test("operator views separate synthetic events, missing pairs and fixed error counts", async (t) => {
+  const { db, send } = await serverFixture(t);
+  db.exec(
+    await readFile(
+      new URL("../../../server/operation-logs/ops-views.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  const end = payload();
+  await send(end);
+  const synthetic = payload();
+  synthetic.appVersion = "2026.10.19-ops-0";
+  await send(synthetic);
+  assert.equal(
+    db.prepare("SELECT records_24h FROM log_ops_summary").get().records_24h,
+    1,
+  );
+  assert.equal(
+    db.prepare("SELECT occurrences FROM log_ops_errors").get().occurrences,
+    2,
+  );
+  assert.equal(
+    db.prepare("SELECT sum(records) n FROM log_ops_gaps").get().n,
+    0,
+  );
+  db.prepare("UPDATE operation_records SET received_at=?").run(
+    new Date(Date.now() - 3600000).toISOString(),
+  );
+  assert.equal(
+    db
+      .prepare(
+        "SELECT records FROM log_ops_gaps WHERE kind='missing_start_after_10m'",
+      )
+      .get().records,
+    1,
+  );
+  const start = {
+    ...end,
+    sequence: 1,
+    stage: "started",
+    result: "started",
+    durationMs: 0,
+    files: { ...end.files, succeeded: 0, failed: 0, unprocessed: 100 },
+    bytes: { ...end.bytes, written: 0 },
+    errors: [],
+  };
+  assert.equal((await send(start)).status, 201);
+  assert.equal(
+    db.prepare("SELECT sum(records) n FROM log_ops_gaps").get().n,
+    0,
+  );
+  db.prepare("DELETE FROM operation_records WHERE sequence=2").run();
+  db.prepare("UPDATE operation_records SET received_at=?").run(
+    new Date(Date.now() - 25 * 3600000).toISOString(),
+  );
+  assert.equal(
+    db
+      .prepare(
+        "SELECT records FROM log_ops_gaps WHERE kind='missing_finish_after_24h'",
+      )
+      .get().records,
+    1,
+  );
+});
+
+test("retention caps a run at 5000 and expires only old maintenance summaries", async (t) => {
+  const { db, env, send } = await serverFixture(t);
+  await send();
+  db.exec(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<5001)
+    INSERT INTO operation_records SELECT 'old-'||x,'2020-01-01T00:00:00.000Z',session_id,'op-'||x,
+      sequence,mode,result,build_id,client_payload,payload_hash,signature FROM n,operation_records WHERE record_id NOT LIKE 'old-%'`);
+  db.prepare(
+    "INSERT INTO maintenance_runs(run_id,started_at,status) VALUES('old','2020-01-01T00:00:00.000Z','success')",
+  ).run();
+  await runRetention(env);
+  const run = db.prepare("SELECT * FROM maintenance_runs").all();
+  assert.equal(run.length, 1);
+  assert.equal(run[0].rows_deleted, 5000);
+  assert.equal(run[0].expired_remaining, 1);
+  assert.equal(
+    db.prepare("SELECT count(*) n FROM operation_records").get().n,
+    2,
+  );
 });

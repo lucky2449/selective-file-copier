@@ -29,6 +29,8 @@ jobs:
         run: npm run sync:pages
       - name: Validate source and run regression tests
         run: npm run check
+      - name: Test log operator checks
+        run: python3 -m unittest discover -s server/operation-logs -p "test_*.py"
       - name: Stamp deployed build ID
         run: node scripts/stamp-operation-build.mjs
       - name: Upload site artifact

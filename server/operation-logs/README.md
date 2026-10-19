@@ -82,3 +82,39 @@ node verify-export.mjs operation-export.json
 - https://developers.cloudflare.com/d1/get-started/
 - https://developers.cloudflare.com/d1/platform/pricing/
 - https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+
+
+## 운영 점검 (접속·작업 수집 / 누락·오류 / 사용량 / 정리)
+
+Python 3.11 이상과 로컬 `wrangler.toml`, Wrangler 로그인 또는 `CLOUDFLARE_API_TOKEN`이 필요합니다. 토큰은 파일/출력에 저장하지 않고 Cloudflare 관리 API 호출에만 사용합니다. 계정이 여러 개면 `--account 계정ID`를 지정하세요.
+
+최초 설치 또는 업데이트 시 서버 폴더에서 다음 두 SQL을 적용하고 Worker를 배포합니다. 기존 작업 기록을 초기화하지 않습니다.
+
+```powershell
+npx wrangler d1 execute filemoa-operation-logs --remote --file schema.sql
+npx wrangler d1 execute filemoa-operation-logs --remote --file ops-views.sql
+npx wrangler deploy
+python ops_check.py
+# 합성 접속 기록 1건을 실제 전송하고 DB 저장까지 확인할 때만:
+python ops_check.py --probe
+```
+
+결과는 화면과 저장소 루트 `.local/log-ops-health.json`에 저장됩니다. 파일별 정보나 원본 JSON은 이 요약에 포함하지 않습니다. 이 명령은 실행 시점 점검이며 상시 알림 서비스가 아닙니다. 일반 실행은 조회만 하고 `--probe`는 `-ops-` 표시가 있는 합성 기록 한 건을 추가합니다.
+
+- 수집: 최근 24시간 접속·시작·종료·실패·취소 건수. 합성 `-test-`/`-ops-` 기록은 일반 집계에서 제외합니다. 0건은 방문자 부재와 수집 장애를 구분해야 합니다.
+- 누락·오류: 최근 7일 중 시작 후 24시간 넘게 종료가 없거나 종료 후 10분 넘게 시작이 없는 작업을 별도 집계합니다. 누락 의심이며 실제 파일 손상/실패 판정이 아닙니다. 오류는 최근 24시간 고정 오류 코드·단계·횟수만 집계합니다.
+- 사용량: UTC 당일 계정 전체 Workers 요청·런타임 오류, D1 읽기·쓰기·DB별 최대 용량을 조회합니다. 지연/표본 집계이며 청구 내역이 아닙니다. Free 참고 한도의 80%부터 주의를 표시합니다. 실제 요금제와 계정의 다른 서비스도 함께 확인하세요. 빈 집계나 조회 실패를 0으로 처리하지 않습니다. 런타임 오류에는 정상 처리된 HTTP 400/429/503 응답이 포함되지 않으므로 API 거부 횟수 전체를 뜻하지 않습니다.
+- 정리: 한국 시간 매일 03:20 예약 여부, 90일 초과 잔여 기록, 최근 정리 결과를 확인합니다. `maintenance_runs`에 실행 시작·종료·성공/실패·삭제 건수·미정리 건수를 남기고 이 운영 요약은 7일간 유지합니다. 최초 배포 직후에는 아직 실행 이력이 없을 수 있습니다. 최근 결과 실패/실행 중 또는 성공 이력이 36시간 지나면 경고합니다. 초기 DB 접근 자체가 실패하면 실행 이력도 남지 않을 수 있으므로 오래된 이력과 함께 확인하세요.
+
+Cloudflare Dashboard의 D1 → 해당 DB → Console에서도 `SELECT * FROM log_ops_summary`, `log_ops_gaps`, `log_ops_errors`, `log_ops_retention`을 조회할 수 있습니다. 정리 이력은 `SELECT * FROM maintenance_runs ORDER BY started_at DESC LIMIT 10`으로 확인합니다. 공개 Worker 루트 주소에는 관리자 조회 화면을 제공하지 않습니다.
+
+검증: `npm run check`와 `python -m unittest discover -s server/operation-logs -p "test_*.py"`. 운영 점검 조회도 DB 읽기 사용량에 포함되므로 과도하게 반복하지 마세요.
+
+## 서명 키 추가 백업 방안 (미적용)
+
+현재 DPAPI 복구본은 동일 Windows 사용자/PC에 종속됩니다. 이 파일만 USB로 옮기는 것은 PC 고장 시 복구 대안이 되지 않습니다.
+
+권장안은 비밀번호 관리자의 암호화된 보관함에 기존 키를 별도 저장하고, 추가로 독립 암호로 암호화한 오프라인 복구본을 분리 보관하는 방식입니다. 복구 암호는 복구본과 분리하고, 다른 PC에서 복구한 키로 기존 테스트 기록의 HMAC 검증이 되는지 확인해야 합니다. 키를 새로 생성하거나 교체하면 과거 기록 검증 문제가 생기므로 이번 작업에서는 기존 키를 변경하지 않았습니다. 실제 백업 위치와 수단을 정한 뒤 진행합니다.
+
+- [Microsoft: Export-Clixml 암호화 범위](https://learn.microsoft.com/en-us/powershell/module/Microsoft.PowerShell.Utility/export-clixml?view=powershell-5.1)
+- [CISA: 오프라인 암호화 백업과 복구 검증](https://www.cisa.gov/stopransomware/ransomware-guide)
