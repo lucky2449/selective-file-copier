@@ -1,5 +1,5 @@
 import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
-import { operationLogConfig } from "./operation-log-config.mjs?v=operation-log-1";
+import { operationLogConfig } from "./operation-log-config.mjs?v=operation-log-live-1";
 import {
   APP_VERSION,
   createSaveNotice,
