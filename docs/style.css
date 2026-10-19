@@ -844,3 +844,4 @@ button.result-thumbnail { cursor: zoom-in; }
 .thumbnail-popup[hidden] { display: none; }
 .thumbnail-popup img { display: block; width: 100%; height: 220px; max-height: calc(100vh - 80px); object-fit: contain; }
 .thumbnail-popup span { display: block; padding: 7px 3px 2px; color: #d1d7df; font-size: 11px; overflow-wrap: anywhere; }
+.result-scroll th { z-index: 1; }
