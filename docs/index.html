@@ -27,8 +27,8 @@
     <meta name="twitter:image" content="https://lucky2449.github.io/selective-file-copier/social-card-v1.png" />
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
-    <link rel="stylesheet" href="./style.css?v=neutral-summary-1" />
-    <script type="module" src="./app.mjs?v=extension-dismiss-1"></script>
+    <link rel="stylesheet" href="./style.css?v=extension-chips-1" />
+    <script type="module" src="./app.mjs?v=extension-chips-1"></script>
   </head>
   <body>
     <header>
@@ -94,14 +94,14 @@
             <span>03</span>
             <h3>검색 조건</h3>
           </div>
-          <div id="extension-label" class="field-label">복사할 파일 확장자</div>
-          <details id="extension-menu" class="extension-menu">
-            <summary id="extension-summary" aria-label="복사할 파일 확장자 선택">확장자 선택</summary>
-            <fieldset id="extension" class="extension-field" aria-labelledby="extension-label">
-              <label class="extension-option"><input id="extension-all" type="checkbox" title="모든 확장자 선택/해제" /><span id="extension-all-label">모든 파일</span></label>
-              <div id="extension-options" class="extension-options"></div>
-            </fieldset>
-          </details>
+          <fieldset id="extension" class="extension-field" aria-labelledby="extension-label">
+            <div class="extension-heading">
+              <span id="extension-label" class="field-label">복사할 파일 확장자</span>
+              <label class="extension-all-option"><input id="extension-all" type="checkbox" title="모든 확장자 선택/해제" /><span id="extension-all-label">모두 선택</span></label>
+            </div>
+            <div id="extension-options" class="extension-options"></div>
+            <p id="extension-summary" class="extension-summary" aria-live="polite">원본 폴더를 선택하면 확장자가 표시됩니다.</p>
+          </fieldset>
           <label class="hint">
             <input id="camera-numbers" type="checkbox" checked />
             제조사별 사진 번호 후보 포함

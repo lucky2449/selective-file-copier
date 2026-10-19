@@ -865,7 +865,7 @@ test("extension checkboxes only save checked formats, clear stale selections and
       [".jpg", ".cr3"],
     );
     assert.equal(el("extension-all").checked, false);
-    assert.equal(el("extension-summary").textContent, ".cr3, .jpg");
+    assert.equal(el("extension-summary").textContent, "2개 형식 선택");
     assert.equal(el("selected-count").textContent, "선택한 파일 2개");
     await el("copy").fire("click");
     assert.deepEqual(
@@ -887,7 +887,10 @@ test("extension checkboxes only save checked formats, clear stale selections and
     await el("reset").fire("click");
     assert.equal(el("extension-all").checked, false);
     assert.equal(el("extension-options").children.length, 0);
-    assert.equal(el("extension-summary").textContent, "확장자 선택");
+    assert.equal(
+      el("extension-summary").textContent,
+      "원본 폴더를 선택하면 확장자가 표시됩니다.",
+    );
     let sourceClicks = 0;
     el("folder-input").click = () => sourceClicks++;
     await el("source").fire("click");
@@ -902,7 +905,10 @@ test("all formats starts unchecked on load, new source and reset; explicit selec
   try {
     const { el } = h;
     assert.equal(el("extension-all").checked, false);
-    assert.equal(el("extension-summary").textContent, "확장자 선택");
+    assert.equal(
+      el("extension-summary").textContent,
+      "원본 폴더를 선택하면 확장자가 표시됩니다.",
+    );
     await searchInput(el, [inputFile("source/photo.jpg")], "photo.jpg", null);
     assert.equal(el("extension-all").checked, false);
     assert.equal(el("copy").disabled, true);
@@ -952,7 +958,7 @@ test("all formats checkbox synchronizes individual checks and partial selection 
         .map((input) => input.value),
       [".cr3", ".jpg"],
     );
-    assert.equal(el("extension-summary").textContent, ".cr3, .jpg");
+    assert.equal(el("extension-summary").textContent, "2개 형식 선택");
     assert.equal(el("copy").disabled, true);
     await el("search").fire("click");
     await el("copy").fire("click");
@@ -964,12 +970,12 @@ test("all formats checkbox synchronizes individual checks and partial selection 
     await nef.fire("change");
     assert.equal(el("extension-all").checked, true);
     assert.equal(el("extension-all").indeterminate, false);
-    assert.equal(el("extension-summary").textContent, "모든 파일");
+    assert.equal(el("extension-summary").textContent, "3개 형식 선택");
     el("extension-all").checked = false;
     await el("extension-all").fire("change");
     assert.ok(inputs().every((input) => !input.checked));
     assert.equal(el("extension-all").indeterminate, false);
-    assert.equal(el("extension-summary").textContent, "확장자 선택");
+    assert.equal(el("extension-summary").textContent, "0개 형식 선택");
     await selectExtensions(el, ".cr3");
     assert.equal(el("extension-all").indeterminate, true);
     el("extension-all").checked = true;
@@ -1091,7 +1097,7 @@ test("all selection routes find identical RAW outputs from JPG inputs with no JP
     for (const selection of ["", [".cr3", ".nef"]]) {
       await searchInput(el, files, "A/IMG_0001.JPG", selection);
       assert.equal(el("extension-all").checked, true);
-      assert.equal(el("extension-summary").textContent, "모든 파일");
+      assert.equal(el("extension-summary").textContent, "2개 형식 선택");
       const before = downloads.length;
       outcomes.push({
         selected: el("selected-count").textContent,
@@ -1428,42 +1434,37 @@ test("ZIP uses browser download without requesting directory permission and pres
   }
 });
 
-test("extension checkboxes retain choices inside menu and outside pointer closes it", async () => {
+test("visible format check buttons show uppercase labels and source counts without changing search rules", async () => {
   const h = await setup();
   try {
     await searchInput(
       h.el,
-      [inputFile("source/a.JPG"), inputFile("source/a.CR3")],
+      [
+        inputFile("source/a.JPG"),
+        inputFile("source/b.JPG"),
+        inputFile("source/a.CR3"),
+        inputFile("source/README"),
+      ],
       "a",
-      [".jpg"],
+      null,
     );
-    const menu = h.el("extension-menu"),
-      options = h.el("extension-options");
-    menu.append(options);
-    const checkbox = options.children[0].children[0];
-    assert.equal(checkbox.type, "checkbox");
-    menu.open = true;
-    h.documentHandlers.get("pointerdown")({ target: checkbox });
-    assert.equal(menu.open, true);
-    const before = h.el("extension-summary").textContent;
-    h.documentHandlers.get("pointerdown")({ target: h.el("items") });
-    assert.equal(menu.open, false);
-    assert.equal(h.el("extension-summary").textContent, before);
-    assert.equal(h.el("selected-count").textContent, "선택한 파일 1개");
-  } finally {
-    h.restore();
-  }
-});
-test("Escape closes extension menu without clearing checked formats", async () => {
-  const h = await setup();
-  try {
-    await searchInput(h.el, [inputFile("source/a.JPG")], "a", [".jpg"]);
-    h.el("extension-menu").open = true;
-    h.documentHandlers.get("keydown")({ key: "Tab" });
-    assert.equal(h.el("extension-menu").open, true);
-    h.documentHandlers.get("keydown")({ key: "Escape" });
-    assert.equal(h.el("extension-menu").open, false);
-    assert.equal(h.el("selected-count").textContent, "선택한 파일 1개");
+    const labels = h.el("extension-options").children;
+    const jpg = labels.find((l) => l.children[0].value === ".jpg");
+    assert.equal(jpg.children[0].type, "checkbox");
+    assert.equal(jpg.children[1].textContent, "JPG");
+    assert.equal(jpg.children[2].textContent, "2");
+    const noext = labels.find((l) => l.children[0].value === "");
+    assert.equal(noext.children[1].textContent, "확장자 없음");
+    assert.equal(h.el("extension-summary").textContent, "0개 형식 선택");
+    jpg.children[0].checked = true;
+    await jpg.children[0].fire("change");
+    assert.equal(h.el("extension-summary").textContent, "1개 형식 선택");
+    await h.el("search").fire("click");
+    await h.el("copy").fire("click");
+    assert.deepEqual(
+      h.downloads.map((x) => x.name),
+      ["a.JPG"],
+    );
   } finally {
     h.restore();
   }

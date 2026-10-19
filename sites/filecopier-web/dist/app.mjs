@@ -1,7 +1,7 @@
 import {
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=extension-dismiss-1";
+} from "./save-policy.mjs?v=extension-chips-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -73,8 +73,6 @@ function progress(value, message) {
 }
 function setBusy(value) {
   state.busy = value;
-  $("extension-summary").setAttribute("aria-disabled", String(value));
-  if (value) $("extension-menu").open = false;
   for (const id of [
     "source",
     "reset",
@@ -265,21 +263,21 @@ function updateExtensionLabel() {
   $("extension-all-label").textContent =
     count > 0 && !all
       ? `일부 선택 (${count}/${extensions.length})`
-      : "모든 파일";
+      : "모두 선택";
   $("extension-all").disabled = !extensions.length;
-  $("extension-summary").textContent = all
-    ? "모든 파일"
-    : count
-      ? [...state.extensions]
-          .sort()
-          .map((ext) => ext || "확장자 없음")
-          .join(", ")
-      : "확장자 선택";
+  $("extension-summary").textContent = !extensions.length
+    ? "원본 폴더를 선택하면 확장자가 표시됩니다."
+    : `${count}개 형식 선택`;
 }
 function renderExtensions() {
   updateExtensionLabel();
   $("extension-options").replaceChildren();
   const extensions = availableExtensions();
+  const counts = new Map();
+  for (const entry of state.files) {
+    const ext = extension(entry.name);
+    counts.set(ext, (counts.get(ext) || 0) + 1);
+  }
   for (const ext of extensions) {
     const label = node("label", undefined, "extension-option");
     const input = node("input");
@@ -292,7 +290,19 @@ function renderExtensions() {
       updateExtensionLabel();
       invalidate();
     });
-    label.append(input, node("span", ext || "확장자 없음"));
+    input.setAttribute(
+      "aria-label",
+      `${ext ? ext.slice(1).toUpperCase() : "확장자 없음"} 선택`,
+    );
+    label.append(
+      input,
+      node("span", ext ? ext.slice(1).toUpperCase() : "확장자 없음"),
+      node(
+        "span",
+        counts.get(ext).toLocaleString("ko-KR"),
+        "extension-file-count",
+      ),
+    );
     $("extension-options").append(label);
   }
 }
@@ -361,16 +371,6 @@ $("text-input").addEventListener("change", async (event) => {
   }
 });
 $("items").addEventListener("input", invalidate);
-$("extension-summary").addEventListener("click", (event) => {
-  if (state.busy) event.preventDefault();
-});
-document.addEventListener("pointerdown", (event) => {
-  const menu = $("extension-menu");
-  if (menu.open && !menu.contains(event.target)) menu.open = false;
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") $("extension-menu").open = false;
-});
 $("extension-all").addEventListener("change", () => {
   state.extensions = $("extension-all").checked
     ? new Set(availableExtensions())
