@@ -1,3 +1,4 @@
+import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=preview-1";
 import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
@@ -74,6 +75,8 @@ const state = {
   cancelled: false,
   copyAbort: null,
 };
+let previewFor = createPreviewResolver([]);
+const previews = createPreviewManager({ window, document, root: document.querySelector?.('.result-scroll') });
 let toastTimer;
 function log(message) {
   const lines = $("log").textContent.split("\n");
@@ -197,6 +200,7 @@ function node(tag, text, className) {
   return el;
 }
 function render() {
+  previews.reset();
   $("rows").replaceChildren();
   $("empty").hidden = state.rows.length > 0;
   $("result-table").hidden = !state.rows.length;
@@ -218,6 +222,8 @@ function render() {
       updateSummary();
     });
     checkCell.append(checkbox);
+    content.className = "result-file-cell";
+    previews.attach(content, previewFor(row.chosen));
     content.append(node("span", row.item, "file-name"));
     if (row.chosen) {
       content.append(node("span", row.chosen.path, "file-path"));
@@ -335,6 +341,7 @@ function renderExtensions() {
 function acceptSource(files, name, source = null) {
   files = files.filter((file) => !isExcludedFile(file.name));
   state.files = files;
+  previewFor = createPreviewResolver(files);
   state.pairs = new Map();
   state.extensions = new Set();
   state.source = source;
@@ -849,6 +856,7 @@ $("cancel").addEventListener("click", () => {
   $("progress-label").textContent = "현재 처리를 정리하고 취소합니다...";
 });
 $("reset").addEventListener("click", () => {
+  previewFor = createPreviewResolver([]);
   Object.assign(state, {
     files: [],
     rows: [],
