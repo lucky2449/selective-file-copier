@@ -1,4 +1,4 @@
-export const APP_VERSION = "2026.10.19-notice-10";
+export const APP_VERSION = "2026.10.19-zip-11";
 export const NOTICE_VERSION = "2";
 export function createSaveNotice(
   env,

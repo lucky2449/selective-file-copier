@@ -1,10 +1,10 @@
 import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
-import { operationLogConfig } from "./operation-log-config.mjs?v=operation-log-live-1";
+import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=short-notice-3";
+} from "./save-policy.mjs?v=quota-cleanup-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -29,7 +29,7 @@ import {
   resolvePhotoPair,
   expandPhotoPairs,
 } from "./photo-pairs.mjs?v=selected-formats-1";
-import { prepareZipDownload } from "./zip-download.mjs?v=operation-log-1";
+import { prepareZipDownload } from "./zip-download.mjs?v=quota-cleanup-1";
 const $ = (id) => document.getElementById(id);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
 const operationLogger = createOperationLogger({

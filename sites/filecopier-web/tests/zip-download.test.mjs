@@ -46,7 +46,7 @@ function fixture(fault = "") {
       },
     }),
   };
-  return { state, storage };
+  return { state, storage, directory };
 }
 const files = () => [{ name: "사진.CR3", file: new Blob(["original"]) }];
 test("OPFS ZIP streams and returns file without folder permissions", async () => {
@@ -136,4 +136,57 @@ test("pruning only removes old application-owned private temp files", async () =
     now,
   );
   assert.deepEqual(removed, [old]);
+});
+
+for (const scenario of ["reclaimed", "still-full", "remove-denied"]) {
+  test(`quota estimate runs after expired temporary cleanup: ${scenario}`, async () => {
+    const { state, storage, directory } = fixture();
+    const calls = [];
+    const old = `zip-${Date.now() - 8 * 86400000}-00000000-0000-0000-0000-000000000000.tmp`;
+    let reclaimed = false;
+    directory.values = async function* () {
+      yield { name: old, kind: "file" };
+      yield { name: "photo.JPG", kind: "file" };
+    };
+    directory.removeEntry = async (name) => {
+      calls.push("remove");
+      assert.equal(name, old);
+      if (scenario === "remove-denied")
+        throw new DOMException("Denied", "NotAllowedError");
+      reclaimed = true;
+    };
+    storage.estimate = async () => {
+      calls.push("estimate");
+      assert.deepEqual(calls, ["remove", "estimate"]);
+      return {
+        quota: 10000,
+        usage: scenario === "reclaimed" && reclaimed ? 0 : 10000,
+      };
+    };
+    if (scenario === "reclaimed") {
+      const file = await prepareZipDownload(files(), { storage });
+      assert.equal(file.size, zipSize(files()));
+      assert.equal(state.closed, 1);
+    } else {
+      await assert.rejects(prepareZipDownload(files(), { storage }), {
+        name: "QuotaExceededError",
+      });
+      assert.equal(state.created, 0);
+    }
+    assert.deepEqual(calls, ["remove", "estimate"]);
+  });
+}
+test("cancellation after expired cleanup skips quota estimate and new temporary file", async () => {
+  const { state, storage, directory } = fixture();
+  let cancelled = false;
+  directory.values = async function* () {
+    cancelled = true;
+  };
+  storage.estimate = async () =>
+    assert.fail("Cancelled operation must not continue");
+  await assert.rejects(
+    prepareZipDownload(files(), { storage, cancelled: () => cancelled }),
+    { name: "AbortError" },
+  );
+  assert.equal(state.created, 0);
 });

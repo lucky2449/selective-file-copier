@@ -47,6 +47,15 @@ export async function prepareZipDownload(
       throw sizeMismatch("원본 크기가 달라 ZIP 생성을 중단했습니다.");
     return new Blob(parts, { type: "application/zip" });
   }
+  check();
+  const root = await storage.getDirectory();
+  const directory = await root.getDirectoryHandle(TEMP_DIRECTORY, {
+    create: true,
+  });
+  check();
+  await pruneZipTemps(directory);
+  check();
+  // Reclaim expired application-owned ZIPs before measuring remaining quota.
   if (typeof storage.estimate === "function") {
     const { quota, usage } = await storage.estimate();
     if (
@@ -59,12 +68,6 @@ export async function prepareZipDownload(
         "QuotaExceededError",
       );
   }
-  check();
-  const root = await storage.getDirectory();
-  const directory = await root.getDirectoryHandle(TEMP_DIRECTORY, {
-    create: true,
-  });
-  await pruneZipTemps(directory);
   check();
   const name = `zip-${Date.now()}-${crypto.randomUUID()}.tmp`;
   // UUID is per operation. Never open or overwrite an observed existing entry.
