@@ -1,7 +1,7 @@
 import {
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=browser-download-1";
+} from "./save-policy.mjs?v=extension-dismiss-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -363,6 +363,13 @@ $("text-input").addEventListener("change", async (event) => {
 $("items").addEventListener("input", invalidate);
 $("extension-summary").addEventListener("click", (event) => {
   if (state.busy) event.preventDefault();
+});
+document.addEventListener("pointerdown", (event) => {
+  const menu = $("extension-menu");
+  if (menu.open && !menu.contains(event.target)) menu.open = false;
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") $("extension-menu").open = false;
 });
 $("extension-all").addEventListener("change", () => {
   state.extensions = $("extension-all").checked

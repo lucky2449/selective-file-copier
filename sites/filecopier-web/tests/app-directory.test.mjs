@@ -22,6 +22,11 @@ class Element {
   replaceChildren(...nodes) {
     this.children = nodes;
   }
+  contains(target) {
+    return (
+      target === this || this.children.some((child) => child.contains?.(target))
+    );
+  }
   querySelectorAll() {
     return [];
   }
@@ -66,7 +71,11 @@ async function setup(window = {}, onDownload = () => {}) {
       revoked.push(url);
     },
   };
+  const documentHandlers = new Map();
   globalThis.document = {
+    addEventListener(type, handler) {
+      documentHandlers.set(type, handler);
+    },
     getElementById: el,
     createElement(tag) {
       const node = new Element();
@@ -122,7 +131,7 @@ async function setup(window = {}, onDownload = () => {}) {
     restore();
     throw error;
   }
-  return { el, downloads, revoked, cleanup, restore };
+  return { el, downloads, revoked, cleanup, restore, documentHandlers };
 }
 function inputFile(path, bytes = "photo") {
   return Object.assign(new Blob([bytes]), {
@@ -1414,6 +1423,47 @@ test("ZIP uses browser download without requesting directory permission and pres
     assert.equal(h.downloads[0].name, "파일모아.zip");
     await h.el("copy").fire("click");
     assert.deepEqual(writes.at(-1), ["copy-folder", "photo.jpg"]);
+  } finally {
+    h.restore();
+  }
+});
+
+test("extension checkboxes retain choices inside menu and outside pointer closes it", async () => {
+  const h = await setup();
+  try {
+    await searchInput(
+      h.el,
+      [inputFile("source/a.JPG"), inputFile("source/a.CR3")],
+      "a",
+      [".jpg"],
+    );
+    const menu = h.el("extension-menu"),
+      options = h.el("extension-options");
+    menu.append(options);
+    const checkbox = options.children[0].children[0];
+    assert.equal(checkbox.type, "checkbox");
+    menu.open = true;
+    h.documentHandlers.get("pointerdown")({ target: checkbox });
+    assert.equal(menu.open, true);
+    const before = h.el("extension-summary").textContent;
+    h.documentHandlers.get("pointerdown")({ target: h.el("items") });
+    assert.equal(menu.open, false);
+    assert.equal(h.el("extension-summary").textContent, before);
+    assert.equal(h.el("selected-count").textContent, "선택한 파일 1개");
+  } finally {
+    h.restore();
+  }
+});
+test("Escape closes extension menu without clearing checked formats", async () => {
+  const h = await setup();
+  try {
+    await searchInput(h.el, [inputFile("source/a.JPG")], "a", [".jpg"]);
+    h.el("extension-menu").open = true;
+    h.documentHandlers.get("keydown")({ key: "Tab" });
+    assert.equal(h.el("extension-menu").open, true);
+    h.documentHandlers.get("keydown")({ key: "Escape" });
+    assert.equal(h.el("extension-menu").open, false);
+    assert.equal(h.el("selected-count").textContent, "선택한 파일 1개");
   } finally {
     h.restore();
   }
