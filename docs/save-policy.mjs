@@ -1,4 +1,4 @@
-export const APP_VERSION = "2026.10.19-preview-12";
+export const APP_VERSION = "2026.10.20-preview-13";
 export const NOTICE_VERSION = "2";
 export function createSaveNotice(
   env,

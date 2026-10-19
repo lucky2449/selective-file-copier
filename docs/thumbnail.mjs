@@ -1,3 +1,4 @@
+import { extractRawPreview } from "./raw-preview.mjs?v=raw-preview-1";
 import { extension, normalize, stem } from "./core.mjs?v=selected-formats-1";
 import { isPhotoFile } from "./photo-pairs.mjs?v=selected-formats-1";
 const jpeg = (entry) =>
@@ -20,12 +21,16 @@ export function createPreviewResolver(files) {
     if (jpeg(entry)) return entry;
     if (!isPhotoFile(entry)) return null;
     const matches = groups.get(key(entry)) ?? [];
-    return matches.length === 1 ? matches[0] : null;
+    return matches.length === 1 ? matches[0] : entry;
   };
 }
 
 // Only a memory-backed, resized JPEG is produced. No filesystem or network writes.
-export async function makeThumbnail(file, { window, document }) {
+export async function makeThumbnail(file, { window, document, raw = false }) {
+  if (raw) {
+    file = await extractRawPreview(file);
+    if (!file) throw new Error("Preview unavailable");
+  }
   let decoded, originalUrl;
   try {
     if (typeof window.createImageBitmap === "function") {
@@ -115,7 +120,7 @@ export function createPreviewManager({
     item.url = null;
     item.image?.remove();
     item.image = null;
-    item.button.textContent = item.failed ? "!" : "·";
+    item.button.textContent = item.failed ? "—" : "·";
   }
   function pump() {
     while (active < 2 && queue.length) {
@@ -132,7 +137,9 @@ export function createPreviewManager({
       active++;
       item.loading = true;
       Promise.resolve()
-        .then(() => decode(item.entry.file, { window, document }))
+        .then(() =>
+          decode(item.entry.file, { window, document, raw: !jpeg(item.entry) }),
+        )
         .then((blob) => {
           if (item.disposed || !item.visible) return;
           item.url = urls.createObjectURL(blob);
@@ -147,7 +154,7 @@ export function createPreviewManager({
         .catch(() => {
           if (!item.disposed) {
             item.failed = true;
-            item.button.textContent = "!";
+            item.button.textContent = "—";
             item.button.title =
               "미리보기를 읽을 수 없습니다. 파일 선택과 저장은 계속 사용할 수 있습니다.";
           }
@@ -227,7 +234,7 @@ export function createPreviewManager({
       const button = document.createElement(entry ? "button" : "span");
       button.className = "result-thumbnail";
       button.textContent = entry ? "·" : "—";
-      button.title = entry ? "JPG 미리보기" : "미리보기 없음";
+      button.title = entry ? "사진 미리보기" : "미리보기 없음";
       if (!entry) {
         cell.append(button);
         return;
