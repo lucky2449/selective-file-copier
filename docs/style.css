@@ -845,3 +845,13 @@ button.result-thumbnail { cursor: zoom-in; }
 .thumbnail-popup img { display: block; width: 100%; height: 220px; max-height: calc(100vh - 80px); object-fit: contain; }
 .thumbnail-popup span { display: block; padding: 7px 3px 2px; color: #d1d7df; font-size: 11px; overflow-wrap: anywhere; }
 .result-scroll th { z-index: 1; }
+
+.privacy-panel { position:fixed; z-index:200; bottom:16px; right:16px; width:min(520px,calc(100vw - 32px)); max-height:65vh; overflow:auto; padding:20px; border:1px solid #596473; border-radius:12px; background:#181c22; color:#dce1e8; box-shadow:0 8px 36px #0009; font-size:13px; line-height:1.65; }
+.privacy-panel[hidden] { display:none; }
+.privacy-panel h2 { margin:0 0 10px; font-size:18px; }
+.privacy-panel p { margin:8px 0; }
+.privacy-panel fieldset { border:1px solid #444d59; padding:10px 12px; margin:12px 0; border-radius:6px; }
+.privacy-panel label { display:flex; align-items:center; gap:8px; padding:5px 0; }
+.privacy-panel input { flex:0 0 auto; }
+.privacy-panel a { color:#b9d4ff; }
+.privacy-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }

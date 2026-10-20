@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>개인정보 처리방침 · 파일모아</title>
+    <link rel="stylesheet" href="./style.css?v=privacy-1" />
+    <script type="module" src="./privacy-page.mjs?v=privacy-1"></script>
+    <style>
+      .policy {
+        max-width: 920px;
+        margin: 36px auto;
+        padding: 24px;
+        line-height: 1.8;
+        overflow-wrap: anywhere;
+      }
+      .policy h1 {
+        font-size: 28px;
+      }
+      .policy h2 {
+        margin: 30px 0 10px;
+        font-size: 20px;
+      }
+      .policy p,
+      .policy li {
+        font-size: 14px;
+      }
+      .policy a {
+        color: #b9d4ff;
+      }
+      .policy table {
+        display: block;
+        overflow: auto;
+        width: 100%;
+      }
+      .policy th,
+      .policy td {
+        padding: 10px;
+        vertical-align: top;
+        white-space: normal;
+      }
+      .policy-alert {
+        padding: 14px;
+        border: 1px solid #596473;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="policy">
+      <a href="./">← 파일모아로 돌아가기</a>
+      <h1>개인정보 처리방침</h1>
+      <p>
+        시행일·버전: <span id="policy-version">2026-10-20.1</span
+        ><br />운영·개인정보 문의 담당:
+        <span id="policy-operator">파일모아 운영자</span><br />문의:
+        <a id="policy-email" href="mailto:sjm2449@naver.com"
+          >sjm2449@naver.com</a
+        >
+      </p>
+      <p class="policy-alert">
+        GA4의 실제 보관 설정과 Cloudflare D1의 저장 국가·국외 처리 범위를
+        확인하기 전에는 선택 통계·작업 기록의 신규 전송을 중지합니다. 확인한
+        정보로 방침을 갱신한 후 별도 선택을 받습니다. 검색·복사·ZIP은 동의 없이
+        사용할 수 있습니다.
+      </p>
+      <h2>1. 기기 안에서 처리하는 사진·파일 정보</h2>
+      <p>
+        선택한 파일의 내용·파일명·폴더 경로·찾을 목록은 브라우저에서 처리하며
+        운영자, Google Analytics, 작업 로그 서버로 전송하지 않습니다. JPG/RAW
+        미리보기와 RAW 변환도 기기 안에서 수행합니다. 원본 수정·삭제·이동 기능을
+        제공하지 않습니다.
+      </p>
+      <h2>2. 선택 수집·이용의 목적과 항목</h2>
+      <p>
+        각 목적의 수집·이용과 국외 이전에 각각 동의한 경우에만 아래 선택 정보의
+        전송을 시작합니다. 처리 근거는 해당 선택 동의이며, 거절해도 파일 기능을
+        제한하지 않습니다. 동의 전 작업 기록을 보관해 두었다가 소급 전송하지
+        않습니다.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>목적</th>
+            <th>항목</th>
+            <th>현재 상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GA4 이용 통계</td>
+            <td>방문·기능 사용 현황 분석과 서비스 개선</td>
+            <td>
+              쿠키 식별자, 기기·브라우저 정보, 방문 시각, 검색·복사·다운로드·ZIP
+              사용 이벤트와 처리 수량. Google은 통신 과정에서 IP 주소를 처리할
+              수 있습니다. 앱은 URL 검색어·외부 유입 경로를 분석 이벤트에 넣지
+              않습니다.
+            </td>
+            <td id="policy-analytics-status">설정 확인 전 신규 전송 중지</td>
+          </tr>
+          <tr>
+            <td>작업 진단 기록</td>
+            <td>
+              오류 분석, 서비스 운영 확인 및 분쟁 사실관계 확인을 위한 보조 자료
+            </td>
+            <td>
+              임시 접속·작업 ID, 시작·종료·실패·취소/요청 결과, 파일 수·합계
+              용량·처리량, 고정 오류 종류, 앱·배포·브라우저 버전,
+              클라이언트·서버 시각, 소요 시간, 서버 기록 ID·해시·서명
+            </td>
+            <td id="policy-logs-status">설정 확인 전 신규 전송 중지</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        파일 내용·이름·경로·입력 목록 및 원시 오류 메시지는 위 수집 항목에
+        포함하지 않습니다. 앱의 작업 기록 DB에는 IP·전체 User-Agent를 저장하지
+        않습니다. 다만 클라우드 제공자는 요청 처리 과정에서 접속 IP 등 통신
+        정보를 처리할 수 있습니다.
+      </p>
+      <h2>3. 보유·이용 기간과 파기</h2>
+      <ul>
+        <li>
+          GA4:
+          <span id="policy-ga-retention"
+            >관리 설정 미확인 — 확인 전 신규 전송 중지. 기존 자료의 보유 설정도
+            확인 중입니다.</span
+          >
+        </li>
+        <li>
+          작업 기록: 수집일로부터 90일을 보관·정리 기준으로 삼고, 이를 지난
+          기록을 예약 작업으로 순차 삭제합니다. 정리 오류·적체 여부는 운영 점검
+          대상입니다.
+        </li>
+        <li>
+          수집 선택 기록: 이 브라우저의 localStorage에 방침 버전·설정
+          식별값·선택 항목·선택/만료 시각을 최대 180일 저장합니다. 운영자 서버로
+          선택 기록 자체를 보내지는 않습니다.
+        </li>
+        <li>
+          문의 대응: 이용자가 이메일로 제공한 회신 주소·문의 내용은 답변과 오류
+          확인을 위해 사용하고, 문의 처리 종료 후 90일 이내 불필요한 자료를
+          삭제합니다. 문의 메일은 네이버 메일로 수신하며 메일 제공자의 통신
+          처리가 수반됩니다. 법령상 별도 보존이 필요한 경우 해당 근거와 기간에
+          따릅니다.
+        </li>
+      </ul>
+      <p>
+        전자 기록은 DB 삭제 등 통상적인 방법으로 정리합니다. 별도
+        내려받기·백업을 생성하는 경우에도 보유 목적과 기간에 맞춰 관리해야
+        합니다. 기존에 수집된 자료가 동의 철회만으로 자동 삭제되지는 않으므로
+        삭제를 원하면 아래 연락처로 요청해 주세요.
+      </p>
+      <h2>4. 외부 처리와 국외 이전</h2>
+      <p>
+        국외 이전은 각 항목의 별도 동의를 근거로 합니다. 실제 국가·기간을
+        확인하지 않은 항목은 동의를 받을 수 없도록 비활성화합니다. 각 항목의
+        상세 정보는 다음과 같습니다.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>이전받는 자·연락처</th>
+            <th>국가</th>
+            <th>시기·방법 / 목적·기간</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GA4 분석 처리</td>
+            <td>
+              Google LLC<br /><a
+                href="https://support.google.com/policies/troubleshooter/7575787?hl=ko"
+                target="_blank"
+                rel="noopener noreferrer"
+                >개인정보 문의 창구</a
+              >
+            </td>
+            <td id="policy-analytics-countries">
+              미확인 — 확인 전 신규 이전 중지
+            </td>
+            <td>
+              설정 확인 및 동의 후 방문·기능 사용 시 HTTPS로 전송 / 이용 통계
+              분석 / 3항에 표시한 확인된 GA4 보유 설정에 따름
+            </td>
+          </tr>
+          <tr>
+            <td>로그 처리위탁·보관</td>
+            <td>
+              Cloudflare, Inc.<br /><a
+                href="https://www.cloudflare.com/privacypolicy/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >개인정보 정책·연락처</a
+              >
+            </td>
+            <td id="policy-logs-countries">미확인 — 확인 전 신규 이전 중지</td>
+            <td>
+              설정 확인 및 동의 후 방문 및 작업 시작·종료 시 HTTPS로 전송 / 로그
+              수집·DB 호스팅과 오류 분석 / 운영자 DB는 90일 정리 기준, 제공자
+              자체 통신 정보는 제공자 정책 적용
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        하단 ‘수집 설정’에서 동의하지 않거나 철회하면 이후 해당 선택 전송을
+        중지합니다. 과거 이미 전송된 요청을 회수할 수는 없습니다. 외부 제공자의
+        계약·처리 범위와 국가·보유 설정을 변경하면 방침과 선택 내용을 함께
+        갱신합니다.
+      </p>
+      <h2>5. 사이트 접속에 필요한 호스팅 처리</h2>
+      <p>
+        정적 사이트는 GitHub Pages로 제공합니다. 사이트 요청 전달·보안·운영을
+        위해 호스팅 제공자가 IP 주소·요청 주소·브라우저 정보 등 통신 정보를 자체
+        정책에 따라 처리할 수 있습니다. 이는 위 선택 통계·작업 로그와 구분되며,
+        선택 수집을 꺼도 사이트 접속 자체의 통신 처리가 없어지는 것은 아닙니다.
+        운영자는 사진을 호스팅 제공자에게 업로드하는 기능을 두지 않습니다.
+      </p>
+      <p>
+        <a
+          href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub 개인정보 정책</a
+        >
+        ·
+        <a
+          href="https://policies.google.com/privacy/partners?hl=ko"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Google 정보 처리 안내</a
+        >
+        ·
+        <a
+          href="https://www.cloudflare.com/privacypolicy/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Cloudflare 개인정보 정책</a
+        >
+      </p>
+      <h2>6. 선택 변경·철회와 이용자 권리</h2>
+      <p>
+        메인 화면 하단 ‘수집 설정’에서 항목별 선택을 바꾸거나 ‘동의 안 함’을
+        누를 수 있습니다. 철회 후 앱은 신규 전송을 차단하고 대기 중인 로그
+        요청의 중단을 시도합니다. 다른 탭의 설정 변경도 반영합니다.
+        브라우저·기기별 선택은 서로 자동 동기화되지 않습니다.
+      </p>
+      <p>
+        열람·정정·삭제·처리 정지 등 요청은 위 문의 이메일로 보내주세요. 최소한의
+        본인·기록 확인이 필요할 수 있습니다. 임시 ID만 남기는 구조에서는 특정
+        이용자의 기록을 바로 식별하기 어려울 수 있으므로, 필요한 범위에서 작업
+        시각·브라우저 등 확인 방법을 협의합니다. 사진 원본·파일명·폴더 경로를
+        공개 게시판에 올리지 마세요.
+      </p>
+      <h2>7. 쿠키·기기 저장 정보</h2>
+      <p>
+        GA4 동의 후에는 파일모아 전용 접두사(filemoa)와 사이트 경로를 사용하는
+        쿠키를 최대 180일 만료로 설정하며 자동 만료 갱신을 끕니다. 이는 GA4
+        서버의 데이터 보유기간과 별도입니다. 철회 시 앱에서 관리하는 분석 쿠키
+        삭제를 시도합니다. 과거 공유 경로에 생성된 쿠키나 브라우저 제한 때문에
+        남는 쿠키는 브라우저의 사이트 데이터 설정에서 삭제할 수 있습니다.
+      </p>
+      <p>
+        localStorage에는 수집 선택과 저장 전 안내 확인 여부를 기억합니다. 선택
+        정보를 지우면 다음 방문에서 기본 꺼짐으로 다시 선택받습니다. 브라우저가
+        저장을 차단하면 현재 탭에서만 선택이 유지될 수 있습니다.
+        <a
+          href="https://tools.google.com/dlpage/gaoptout?hl=ko"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Google 통계 수집 거부 도구</a
+        >는 GA4에만 적용됩니다.
+      </p>
+      <h2>8. 보호조치·안내 변경</h2>
+      <p>
+        파일 정보 전송을 제한하는 항목 검증, HTTPS 전송, 로그 공개 조회 차단,
+        관리자 접근 제한, 보유기간 정리와 배포 버전 관리를 적용합니다. 작업
+        기록은 당시 동작을 확인하는 보조 자료이며 무사고·무손상이나 기록의
+        완전성을 보장하는 자료는 아닙니다.
+      </p>
+      <p>
+        목적·항목·이전 국가·보유기간 등 선택에 중요한 정보가 달라지면 버전을
+        변경하고 필요한 선택을 다시 받습니다. 문의는 상단 이메일로 접수합니다.
+      </p>
+    </main>
+  </body>
+</html>

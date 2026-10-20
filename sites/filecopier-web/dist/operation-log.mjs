@@ -34,6 +34,8 @@ export function createOperationLogger({
   config,
   appVersion,
   now = () => Date.now(),
+  hasConsent = () => false,
+  consentRevision = () => 0,
 }) {
   let endpoint = "";
   try {
@@ -54,19 +56,33 @@ export function createOperationLogger({
   let sessionId;
   const browser = browserInfo(window.navigator?.userAgent);
   let pending = 0;
+  const controllers = new Set();
   // No persistent queue: never retain a user's work history on disk.
-  function send(value) {
-    if (!enabled || pending >= 8) return;
+  function send(value, revision) {
+    if (
+      !enabled ||
+      !hasConsent() ||
+      revision !== consentRevision() ||
+      pending >= 8
+    )
+      return;
     try {
       validateOperation(value);
       const body = JSON.stringify(value);
       if (new TextEncoder().encode(body).length > 4096) return;
       const controller = new AbortController();
+      controllers.add(controller);
       const timer = setTimeout(() => controller.abort(), 5000);
       pending++;
       Promise.resolve()
-        .then(() =>
-          window.fetch(endpoint, {
+        .then(() => {
+          if (
+            !hasConsent() ||
+            revision !== consentRevision() ||
+            controller.signal.aborted
+          )
+            return;
+          return window.fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body,
@@ -74,16 +90,19 @@ export function createOperationLogger({
             referrerPolicy: "no-referrer",
             keepalive: true,
             signal: controller.signal,
-          }),
-        )
+          });
+        })
         .catch(() => {})
         .finally(() => {
+          controllers.delete(controller);
           pending--;
           clearTimeout(timer);
         });
     } catch {}
   }
   function begin(mode, { selectedCount = 0, selectedBytes = 0 } = {}) {
+    const revision = consentRevision();
+    if (!enabled || !hasConsent()) return { error() {}, finish() {} };
     let operationId;
     try {
       sessionId ||= window.crypto.randomUUID();
@@ -110,17 +129,20 @@ export function createOperationLogger({
       unprocessed: selectedCount,
     };
     if (mode !== "visit")
-      send({
-        ...base,
-        sequence: 1,
-        clientTime: new Date(start).toISOString(),
-        stage: "started",
-        result: "started",
-        durationMs: 0,
-        files: zero,
-        bytes: { selected: selectedBytes, written: 0, prepared: 0 },
-        errors: [],
-      });
+      send(
+        {
+          ...base,
+          sequence: 1,
+          clientTime: new Date(start).toISOString(),
+          stage: "started",
+          result: "started",
+          durationMs: 0,
+          files: zero,
+          bytes: { selected: selectedBytes, written: 0, prepared: 0 },
+          errors: [],
+        },
+        revision,
+      );
     return {
       error(error, phase) {
         if (error?.name === "AbortError" || !PHASES.has(phase)) return;
@@ -141,33 +163,40 @@ export function createOperationLogger({
       } = {}) {
         if (finished) return;
         finished = true;
-        send({
-          ...base,
-          sequence: 2,
-          clientTime: new Date(now()).toISOString(),
-          stage: "finished",
-          result,
-          durationMs: Math.max(0, now() - start),
-          files: {
-            ...zero,
-            succeeded,
-            requested,
-            archived,
-            failed,
-            unprocessed: selectedCount - succeeded - requested - failed,
+        send(
+          {
+            ...base,
+            sequence: 2,
+            clientTime: new Date(now()).toISOString(),
+            stage: "finished",
+            result,
+            durationMs: Math.max(0, now() - start),
+            files: {
+              ...zero,
+              succeeded,
+              requested,
+              archived,
+              failed,
+              unprocessed: selectedCount - succeeded - requested - failed,
+            },
+            bytes: {
+              selected: selectedBytes,
+              written: writtenBytes,
+              prepared: preparedBytes,
+            },
+            errors: [...errors.values()],
           },
-          bytes: {
-            selected: selectedBytes,
-            written: writtenBytes,
-            prepared: preparedBytes,
-          },
-          errors: [...errors.values()],
-        });
+          revision,
+        );
       },
     };
   }
   return {
     enabled,
+    stop() {
+      for (const controller of controllers) controller.abort();
+      sessionId = undefined;
+    },
     begin,
     visit() {
       const op = begin("visit");

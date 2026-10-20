@@ -1,12 +1,14 @@
+import { createPrivacy, bindPrivacy } from "./privacy.mjs?v=privacy-1";
+import { privacyConfig } from "./privacy-config.mjs?v=privacy-1";
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=decoder-license-1";
-import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
+import { createOperationLogger } from "./operation-log.mjs?v=privacy-1";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=quota-cleanup-1";
-import { createAnalytics } from "./analytics.mjs";
+} from "./save-policy.mjs?v=privacy-1";
+import { createAnalytics } from "./analytics.mjs?v=privacy-1";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
@@ -33,23 +35,29 @@ import {
 import { prepareZipDownload } from "./zip-download.mjs?v=quota-cleanup-1";
 const $ = (id) => document.getElementById(id);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
+const privacy = createPrivacy({ window, config: privacyConfig });
 const operationLogger = createOperationLogger({
   window,
   config: operationLogConfig,
   appVersion: APP_VERSION,
+  hasConsent: () => privacy.allowed("logs"),
+  consentRevision: () => privacy.revision,
 });
 const confirmSave = createSaveNotice(window, {
-  operationLogsEnabled: operationLogger.enabled,
+  operationLogsEnabled: () => operationLogger.enabled && privacy.allowed("logs"),
   retentionDays: operationLogConfig.retentionDays,
 });
 if (operationLogger.enabled) {
   $("operation-log-notice").hidden = false;
   $("operation-log-retention").textContent =
     `${operationLogConfig.retentionDays}일`;
-  operationLogger.visit();
 }
 function sizeMismatch(message) {
   return Object.assign(new Error(message), { code: "SIZE_MISMATCH" });
+}
+function analyticsTicket() {
+  const allowed = privacy.allowed("analytics"), revision = privacy.revision;
+  return () => allowed && privacy.allowed("analytics") && privacy.revision === revision;
 }
 function operationSize(files) {
   return {
@@ -57,9 +65,16 @@ function operationSize(files) {
     selectedBytes: files.reduce((sum, entry) => sum + entry.file.size, 0),
   };
 }
-const analytics = createAnalytics({ measurementId, window, document });
+const analytics = createAnalytics({ measurementId, window, document, hasConsent: () => privacy.allowed("analytics") });
 if (analytics.configured) $("analytics-notice").hidden = false;
-analytics.start();
+let logsActive = false;
+bindPrivacy({ window, document, config: privacyConfig, privacy, changed() {
+  if (privacy.allowed("analytics")) analytics.start(); else analytics.stop();
+  if (privacy.allowed("logs")) {
+    if (!logsActive) operationLogger.visit();
+    logsActive = true;
+  } else { operationLogger.stop(); logsActive = false; }
+} });
 const canChooseDestination = typeof window.showDirectoryPicker === "function";
 const defaultDestinationLabel = canChooseDestination
   ? "저장 폴더 선택 (선택 사항)"
@@ -520,6 +535,7 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 async function downloadFiles(files) {
+  const analyticsAllowed = analyticsTicket();
   const operation = operationLogger.begin("download", operationSize(files));
   state.cancelled = false;
   setBusy(true);
@@ -538,7 +554,7 @@ async function downloadFiles(files) {
         const name = uniqueName(entry.name, occupied);
         download(entry.file, name);
         requested++;
-        analytics.track("download_request");
+        if (analyticsAllowed()) analytics.track("download_request");
         log(`다운로드 요청: ${entry.name} → ${name}`);
       } catch (error) {
         failed++;
@@ -576,6 +592,7 @@ async function downloadFiles(files) {
   }
 }
 async function exportZip() {
+  const analyticsAllowed = analyticsTicket();
   if (state.busy) return;
   const files = outputFiles();
   if (!files.length) return;
@@ -622,7 +639,7 @@ async function exportZip() {
       "ZIP 다운로드를 요청했습니다. 실제 저장 여부는 브라우저 다운로드 목록에서 확인하세요.",
     );
     diagnostics.record("zip", "requested");
-    analytics.track("zip_created");
+    if (analyticsAllowed()) analytics.track("zip_created");
   } catch (error) {
     zipFailed = true;
     zipCancelled = error.name === "AbortError";
@@ -652,6 +669,7 @@ async function exportZip() {
   }
 }
 async function copyFiles() {
+  const analyticsAllowed = analyticsTicket();
   if (state.busy) return;
   const files = outputFiles();
   if (!files.length) return;
@@ -844,7 +862,7 @@ async function copyFiles() {
       diagnostics.record("copy", "failed");
     // One summary per copy operation; GA4 user metrics deduplicate visitors.
     state.copyAbort = null;
-    analytics.recordCopyResult(success, failed);
+    if (analyticsAllowed()) analytics.recordCopyResult(success, failed);
     setBusy(false);
   }
 }

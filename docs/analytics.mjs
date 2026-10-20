@@ -10,7 +10,13 @@ const EVENTS = new Set([
   "zip_created",
 ]);
 
-export function createAnalytics({ measurementId = "", window, document }) {
+export function createAnalytics({
+  measurementId = "",
+  window,
+  document,
+  hasConsent = () => false,
+}) {
+  let script;
   let active = false;
   let started = false;
   let visited = false;
@@ -28,7 +34,8 @@ export function createAnalytics({ measurementId = "", window, document }) {
   return {
     configured,
     start() {
-      if (!configured || started) return;
+      if (!configured || started || !hasConsent()) return;
+      window[`ga-disable-${measurementId}`] = false;
       started = true;
       try {
         window.dataLayer = window.dataLayer || [];
@@ -42,11 +49,16 @@ export function createAnalytics({ measurementId = "", window, document }) {
         gtag("js", new Date());
         gtag("config", measurementId, {
           send_page_view: false,
+          cookie_prefix: "filemoa",
+          cookie_path: "/selective-file-copier/",
+          cookie_domain: "none",
+          cookie_expires: 180 * 86400,
+          cookie_update: false,
           allow_google_signals: false,
           allow_ad_personalization_signals: false,
           ...metadata,
         });
-        const script = document.createElement("script");
+        script = document.createElement("script");
         script.async = true;
         script.referrerPolicy = "no-referrer";
         script.src =
@@ -61,12 +73,32 @@ export function createAnalytics({ measurementId = "", window, document }) {
         active = false; // Analytics must never block searching or copying.
       }
     },
+    stop() {
+      active = false;
+      started = false;
+      visited = false;
+      window[`ga-disable-${measurementId}`] = true;
+      script?.remove?.();
+      try {
+        for (const item of (document.cookie ?? "").split(";")) {
+          const name = item.trim().split("=")[0];
+          if (
+            !/^filemoa_ga(?:_|$)/.test(name) &&
+            name !== "_ga_" + measurementId.slice(2)
+          )
+            continue;
+          for (const path of ["/selective-file-copier/", "/"])
+            for (const domain of ["", "; Domain=lucky2449.github.io"])
+              document.cookie = `${name}=; Max-Age=0; Path=${path}${domain}; SameSite=Lax; Secure`;
+        }
+      } catch {}
+    },
     recordCopyResult(success, failed) {
       this.track("copy_success", success);
       this.track("copy_failure", failed);
     },
     track(event, count) {
-      if (!active || !EVENTS.has(event)) return;
+      if (!active || !hasConsent() || !EVENTS.has(event)) return;
       if (event === "page_view" && visited) return;
       const counts = {};
       if (event === "copy_success" || event === "copy_failure") {

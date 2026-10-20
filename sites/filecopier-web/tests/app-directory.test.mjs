@@ -1,3 +1,5 @@
+import { privacyConfig } from "../dist/privacy-config.mjs?v=privacy-1";
+import { createPrivacy, PRIVACY_KEY } from "../dist/privacy.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -630,7 +632,11 @@ for (const scenario of [
   test(`copy analytics reports one operation with actual file counts: ${scenario}`, async () => {
     let h,
       commits = 0;
-    const win = { location: { origin: "https://lucky2449.github.io" } };
+    const analyticsOriginal = { ...privacyConfig.analytics };
+    Object.assign(privacyConfig.analytics, { countries: ["미국"], retentionMonths: 2, verified: true });
+    const stored = new Map();
+    const win = { location: { origin: "https://lucky2449.github.io" }, localStorage: {getItem:k=>stored.get(k),setItem:(k,v)=>stored.set(k,v)} };
+    createPrivacy({window:win,config:privacyConfig}).save({analyticsUse:true,analyticsTransfer:true});
     const parent = {
       kind: "directory",
       name: "output",
@@ -704,6 +710,7 @@ for (const scenario of [
       assert.equal(await source[0].text(), "original");
     } finally {
       h.restore();
+      Object.assign(privacyConfig.analytics, analyticsOriginal);
     }
   });
 }

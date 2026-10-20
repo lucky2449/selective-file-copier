@@ -3,7 +3,11 @@ import test from "node:test";
 import { createAnalytics } from "../dist/analytics.mjs";
 
 const ID = "G-TEST123456";
-function fixture(measurementId = ID, origin = "https://lucky2449.github.io") {
+function fixture(
+  measurementId = ID,
+  origin = "https://lucky2449.github.io",
+  hasConsent = () => true,
+) {
   const scripts = [];
   const window = {
     location: {
@@ -18,7 +22,12 @@ function fixture(measurementId = ID, origin = "https://lucky2449.github.io") {
     createElement: () => ({}),
     head: { append: (script) => scripts.push(script) },
   };
-  const analytics = createAnalytics({ measurementId, window, document });
+  const analytics = createAnalytics({
+    measurementId,
+    window,
+    document,
+    hasConsent,
+  });
   return {
     analytics,
     window,
@@ -167,4 +176,39 @@ test("copy summaries accept only positive safe integer counts", () => {
   assert.equal(summary.length, 2);
   assert.equal(summary[0][2].copied_file_count, 1000);
   assert.equal(summary[1][2].failed_file_count, 3);
+});
+test("GA4 never loads or queues events without explicit consent", () => {
+  const h = fixture(ID, "https://lucky2449.github.io", () => false);
+  h.analytics.start();
+  h.analytics.track("file_search");
+  assert.equal(h.scripts.length, 0);
+  assert.deepEqual(h.commands(), []);
+  const a = createAnalytics({
+    measurementId: ID,
+    window: h.window,
+    document: h.document,
+  });
+  a.start();
+  assert.equal(h.scripts.length, 0);
+});
+test("withdrawal disables measurement, stops future events, and clears only owned cookies", () => {
+  let allowed = true;
+  const h = fixture(ID, "https://lucky2449.github.io", () => allowed);
+  let written = [];
+  Object.defineProperty(h.document, "cookie", {
+    get: () =>
+      "filemoa_ga=owned; _ga_H7FQ3VZPMB=legacy; _ga=shared; other=value",
+    set: (v) => written.push(v),
+  });
+  h.analytics.start();
+  const before = h.commands().length;
+  allowed = false;
+  h.analytics.stop();
+  h.analytics.track("copy_success", 10);
+  assert.equal(h.window["ga-disable-" + ID], true);
+  assert.equal(h.commands().length, before);
+  assert.ok(written.some((v) => v.startsWith("filemoa_ga=")));
+  assert.ok(
+    written.every((v) => !v.startsWith("_ga=") && !v.startsWith("other=")),
+  );
 });

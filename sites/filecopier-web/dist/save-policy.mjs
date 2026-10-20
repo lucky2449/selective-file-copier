@@ -1,15 +1,26 @@
-export const APP_VERSION = "2026.10.20-preview-16";
+export const APP_VERSION = "2026.10.20-privacy-17";
 export const NOTICE_VERSION = "2";
 export function createSaveNotice(
   env,
   { operationLogsEnabled = false, retentionDays = 90 } = {},
 ) {
-  const acceptanceVersion = `${NOTICE_VERSION}:${operationLogsEnabled ? `logs-${retentionDays}` : "local"}`;
-  const logNotice = operationLogsEnabled
-    ? `\n\n접속 시부터 오류 분석·분쟁 대응용 작업 기록을 Cloudflare 서버로 전송하며, ${retentionDays}일 기준으로 보관·정리합니다.`
-    : "";
+  const logsEnabled = () =>
+    typeof operationLogsEnabled === "function"
+      ? operationLogsEnabled()
+      : operationLogsEnabled;
+  let acceptanceVersion;
+  let logNotice;
+  function updateNotice() {
+    acceptanceVersion = `${NOTICE_VERSION}:${logsEnabled() ? `logs-${retentionDays}` : "local"}`;
+    logNotice = logsEnabled()
+      ? `\n\n선택 동의 후 오류 분석·분쟁 대응용 작업 기록을 Cloudflare 서버로 전송하며, ${retentionDays}일 기준으로 보관·정리합니다.`
+      : "";
+  }
   let accepted = false;
   return () => {
+    const previousVersion = acceptanceVersion;
+    updateNotice();
+    if (previousVersion !== acceptanceVersion) accepted = false;
     try {
       accepted ||=
         env.localStorage?.getItem("filemoa-save-notice") === acceptanceVersion;

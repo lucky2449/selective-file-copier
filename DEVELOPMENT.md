@@ -69,7 +69,7 @@ PR은 검증만 실행하며 운영 배포는 하지 않습니다. 실행 결과
 
 ## 통계 설정 (GA4)
 
-`analytics-config.mjs`의 `measurementId`를 설정합니다. 현재 공개 측정 ID는 `G-H7FQ3VZPMB`입니다. 빈 문자열로 설정하면 GA4 태그 로드와 전송을 중지합니다. 공식 GitHub Pages에서만 활성화되며 로컬·이전 Sites 주소에서는 집계하지 않습니다.
+`analytics-config.mjs`의 `measurementId`를 설정합니다. 현재 공개 측정 ID는 `G-H7FQ3VZPMB`입니다. 빈 문자열로 설정하면 GA4 태그 로드와 전송을 중지합니다. 공식 GitHub Pages에서만 사용할 수 있으며 로컬·이전 Sites 주소에서는 집계하지 않습니다. 실제 전송에는 privacy-config.mjs의 검증된 설정과 이용자의 수집·이용/국외 이전 선택 동의가 모두 필요합니다. [수집 설정 확인 절차](PRIVACY_SETUP.md)를 먼저 따르세요.
 
 GA4 관리 → 데이터 스트림 → 웹 스트림의 **향상된 측정**을 꺼서 추가 자동 이벤트 수집을 방지합니다. Google Signals와 광고 개인 최적화도 사용하지 않습니다. 배포 후 GA4 실시간 보고서에서 수신을 확인하세요.
 
