@@ -1,5 +1,5 @@
 import { createRawConverter } from "./raw-convert.mjs?v=raw-convert-1";
-import { extractRawPreview } from "./raw-preview.mjs?v=raw-preview-1";
+import { extractRawPreview } from "./raw-preview.mjs?v=orientation-1";
 import { extension, normalize, stem } from "./core.mjs?v=selected-formats-1";
 import { isPhotoFile } from "./photo-pairs.mjs?v=selected-formats-1";
 const jpeg = (entry) =>
@@ -45,6 +45,7 @@ export async function makeThumbnail(file, { window, document, raw = false }) {
       decoded = await window.createImageBitmap(file, {
         resizeWidth: 320,
         resizeQuality: "low",
+        imageOrientation: "from-image",
       });
     } else {
       originalUrl = window.URL.createObjectURL(file);

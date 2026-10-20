@@ -1,3 +1,4 @@
+import { orientedPreview } from "./preview-orientation.mjs?v=orientation-1";
 // Bounded, read-only extraction of contiguous baseline/progressive JPEG previews.
 // This deliberately does not decode RAW sensor data or claim all RAW support.
 export const RAW_SCAN_LIMIT = 32 * 1024 * 1024;
@@ -55,7 +56,7 @@ export async function extractRawPreview(file) {
       continue;
     if (++attempts > 64) break;
     const end = jpegEnd(bytes, i);
-    if (end) return new Blob([bytes.subarray(i, end)], { type: "image/jpeg" });
+    if (end) return orientedPreview(bytes, bytes.subarray(i, end));
   }
   return null;
 }
