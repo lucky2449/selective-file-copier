@@ -14,7 +14,8 @@ test("preview resolves same-folder RAW companion independently of output filters
   const jpg = entry("A/IMG_0001.JPG"),
     raw = entry("A/img_0001.CR3");
   const resolve = createPreviewResolver([jpg, raw, entry("B/img_0001.jpg")]);
-  assert.equal(resolve(raw), jpg);
+  assert.equal(resolve(raw).file, jpg.file);
+  assert.equal(resolve(raw).rawFallback, raw);
   assert.equal(resolve(jpg), jpg);
   assert.equal(resolve(entry("a/img_0001.CR3")).name, "img_0001.CR3");
   assert.equal(resolve(entry("A/IMG_0001.MP4")), null);
@@ -48,7 +49,7 @@ class Element {
   }
 }
 const flush = () => new Promise((r) => setImmediate(r));
-function fixture(decode) {
+function fixture(decode, converter) {
   let observe;
   const revoked = [],
     made = [],
@@ -83,10 +84,11 @@ function fixture(decode) {
     document,
     root: new Element(),
     decode,
+    converter,
   });
-  const attach = () => {
+  const attach = (fileEntry = entry("A/1.jpg")) => {
     const cell = new Element();
-    manager.attach(cell, entry("A/1.jpg"));
+    manager.attach(cell, fileEntry);
     return cell.children[0];
   };
   return {
@@ -303,4 +305,153 @@ test("RAW without embedded JPEG never reaches the browser decoder", async () => 
     }),
     /Preview unavailable/,
   );
+});
+
+const noRawPreview = () =>
+  Object.assign(new Error("no embedded JPEG"), {
+    code: "RAW_PREVIEW_UNAVAILABLE",
+  });
+test("RAW conversion waits for intent, reuses completed preview, and never changes source", async () => {
+  let calls = 0;
+  const raw = entry("A/1.cr3"),
+    before = await raw.file.text();
+  const f = fixture(
+    async () => {
+      throw noRawPreview();
+    },
+    {
+      convert: async () => {
+        calls++;
+        return new Blob(["thumb"]);
+      },
+    },
+  );
+  const b = f.attach(raw);
+  f.visible(b);
+  await flush();
+  assert.equal(calls, 0);
+  assert.equal(b.textContent, "—");
+  b.handlers.mouseenter();
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(f.made.length, 1);
+  b.handlers.mouseleave();
+  b.handlers.focus();
+  await flush();
+  assert.equal(calls, 1);
+  assert.equal(await raw.file.text(), before);
+});
+test("bad companion JPG falls back to RAW embedded preview without conversion", async () => {
+  const raw = entry("A/1.cr3"),
+    jpg = entry("A/1.jpg");
+  let conversions = 0;
+  const seen = [];
+  const f = fixture(
+    async (file, opts) => {
+      seen.push(opts.raw);
+      if (!opts.raw) throw Error();
+      return new Blob(["thumb"]);
+    },
+    {
+      convert: async () => {
+        conversions++;
+      },
+    },
+  );
+  const b = f.attach(createPreviewResolver([raw, jpg])(raw));
+  f.visible(b);
+  await flush();
+  assert.deepEqual(seen, [false, true]);
+  assert.equal(conversions, 0);
+  assert.equal(f.made.length, 1);
+});
+test("leaving and resetting abort RAW conversion and discard its late output", async () => {
+  let resolve, signal;
+  const f = fixture(
+    async () => {
+      throw noRawPreview();
+    },
+    {
+      convert: (_, opts) => {
+        signal = opts.signal;
+        return new Promise((r) => (resolve = r));
+      },
+    },
+  );
+  const b = f.attach(entry("A/1.nef"));
+  f.visible(b);
+  await flush();
+  b.handlers.focus();
+  await flush();
+  b.handlers.blur();
+  assert.equal(signal.aborted, true);
+  f.manager.reset();
+  resolve(new Blob(["stale"]));
+  await flush();
+  assert.equal(f.made.length, 0);
+});
+test("unsupported RAW conversion remains dash and does not repeatedly retry", async () => {
+  let calls = 0;
+  const f = fixture(
+    async () => {
+      throw noRawPreview();
+    },
+    {
+      convert: async () => {
+        calls++;
+        throw Error("unsupported");
+      },
+    },
+  );
+  const b = f.attach(entry("A/1.arw"));
+  f.visible(b);
+  await flush();
+  b.handlers.click({ stopPropagation() {} });
+  await flush();
+  assert.equal(b.textContent, "—");
+  b.handlers.focus();
+  await flush();
+  assert.equal(calls, 1);
+});
+
+test("RAW conversions stay serial while moving intent between rows", async () => {
+  const active = [];
+  let peak = 0,
+    count = 0;
+  const f = fixture(
+    async () => {
+      throw noRawPreview();
+    },
+    {
+      convert: (_, opts) =>
+        new Promise((resolve, reject) => {
+          count++;
+          peak = Math.max(peak, count);
+          active.push({ resolve, reject });
+          opts.signal.addEventListener(
+            "abort",
+            () => {
+              count--;
+              reject(new DOMException("stop", "AbortError"));
+            },
+            { once: true },
+          );
+        }),
+    },
+  );
+  const a = f.attach(entry("A/1.cr3")),
+    b = f.attach(entry("A/2.cr3"));
+  f.visible(a);
+  f.visible(b);
+  await flush();
+  a.handlers.mouseenter();
+  await flush();
+  a.handlers.mouseleave();
+  b.handlers.mouseenter();
+  await flush();
+  assert.equal(peak, 1);
+  assert.equal(active.length, 2);
+  f.manager.reset();
+  await flush();
+  assert.equal(count, 0);
 });

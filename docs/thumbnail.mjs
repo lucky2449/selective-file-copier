@@ -1,3 +1,4 @@
+import { createRawConverter } from "./raw-convert.mjs?v=raw-convert-1";
 import { extractRawPreview } from "./raw-preview.mjs?v=raw-preview-1";
 import { extension, normalize, stem } from "./core.mjs?v=selected-formats-1";
 import { isPhotoFile } from "./photo-pairs.mjs?v=selected-formats-1";
@@ -21,15 +22,22 @@ export function createPreviewResolver(files) {
     if (jpeg(entry)) return entry;
     if (!isPhotoFile(entry)) return null;
     const matches = groups.get(key(entry)) ?? [];
-    return matches.length === 1 ? matches[0] : entry;
+    return matches.length === 1 ? { ...matches[0], rawFallback: entry } : entry;
   };
 }
 
 // Only a memory-backed, resized JPEG is produced. No filesystem or network writes.
 export async function makeThumbnail(file, { window, document, raw = false }) {
   if (raw) {
-    file = await extractRawPreview(file);
-    if (!file) throw new Error("Preview unavailable");
+    try {
+      const embedded = await extractRawPreview(file);
+      if (!embedded) throw new Error("Preview unavailable");
+      return await makeThumbnail(embedded, { window, document });
+    } catch {
+      throw Object.assign(new Error("Preview unavailable"), {
+        code: "RAW_PREVIEW_UNAVAILABLE",
+      });
+    }
   }
   let decoded, originalUrl;
   try {
@@ -73,6 +81,7 @@ export function createPreviewManager({
   document,
   root,
   decode = makeThumbnail,
+  converter = createRawConverter(window),
 }) {
   let items = [],
     queue = [],
@@ -83,7 +92,10 @@ export function createPreviewManager({
     current = null;
   const urls = window.URL;
   function hide() {
-    for (const item of items) item.hovered = false;
+    for (const item of items) {
+      item.hovered = false;
+      item.controller?.abort();
+    }
     current = null;
     if (popup) popup.hidden = true;
     popupImage?.removeAttribute("src");
@@ -114,7 +126,61 @@ export function createPreviewManager({
     popup.style.left = `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`;
     popup.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - popup.offsetHeight - 8))}px`;
   }
+  let converting = false;
+  function convertOnIntent(item) {
+    if (
+      item.url ||
+      converting ||
+      !item.hovered ||
+      !item.needsConvert ||
+      item.failed ||
+      item.disposed ||
+      !item.visible
+    )
+      return;
+    converting = true;
+    const controller = new AbortController();
+    item.controller = controller;
+    item.button.textContent = "·";
+    Promise.resolve()
+      .then(() =>
+        converter.convert(item.rawFile, { signal: controller.signal }),
+      )
+      .then((blob) => {
+        if (controller.signal.aborted || item.disposed || !item.visible) return;
+        item.url = urls.createObjectURL(blob);
+        const img = document.createElement("img");
+        img.src = item.url;
+        img.alt = "";
+        item.image = img;
+        item.button.textContent = "";
+        item.button.append(img);
+        if (item.hovered) show(item);
+      })
+      .catch((error) => {
+        if (!item.disposed && error.name !== "AbortError") {
+          item.failed = true;
+          item.button.title = "RAW 미리보기를 만들 수 없습니다.";
+        }
+      })
+      .finally(() => {
+        converting = false;
+        item.controller = null;
+        if (!item.disposed && !item.url) item.button.textContent = "—";
+        const next = items.find(
+          (i) =>
+            i.hovered &&
+            i.visible &&
+            !i.disposed &&
+            !i.url &&
+            i.needsConvert &&
+            !i.failed,
+        );
+        if (next) convertOnIntent(next);
+      });
+  }
   function release(item) {
+    item.controller?.abort();
     if (current === item) hide();
     if (item.url) urls.revokeObjectURL(item.url);
     item.url = null;
@@ -138,7 +204,15 @@ export function createPreviewManager({
       item.loading = true;
       Promise.resolve()
         .then(() =>
-          decode(item.entry.file, { window, document, raw: !jpeg(item.entry) }),
+          decode(item.entry.file, {
+            window,
+            document,
+            raw: !jpeg(item.entry),
+          }).catch((error) => {
+            if (jpeg(item.entry) && item.rawFile)
+              return decode(item.rawFile, { window, document, raw: true });
+            throw error;
+          }),
         )
         .then((blob) => {
           if (item.disposed || !item.visible) return;
@@ -151,8 +225,17 @@ export function createPreviewManager({
           item.button.append(img);
           if (item.hovered) show(item);
         })
-        .catch(() => {
-          if (!item.disposed) {
+        .catch((error) => {
+          if (
+            !item.disposed &&
+            error.code === "RAW_PREVIEW_UNAVAILABLE" &&
+            item.rawFile
+          ) {
+            item.needsConvert = true;
+            item.button.textContent = "—";
+            item.button.title = "마우스를 올리면 RAW 미리보기를 생성합니다.";
+            convertOnIntent(item);
+          } else if (!item.disposed) {
             item.failed = true;
             item.button.textContent = "—";
             item.button.title =
@@ -172,6 +255,7 @@ export function createPreviewManager({
       !item.loading &&
       !item.url &&
       !item.failed &&
+      !item.needsConvert &&
       !item.disposed
     ) {
       item.queued = true;
@@ -241,17 +325,25 @@ export function createPreviewManager({
       }
       button.type = "button";
       button.setAttribute("aria-label", `${entry.name} 미리보기`);
-      const item = { button, entry, visible: false, disposed: false };
+      const item = {
+        button,
+        entry,
+        rawFile: !jpeg(entry) ? entry.file : entry.rawFallback?.file,
+        visible: false,
+        disposed: false,
+      };
       items.push(item);
       button.previewItem = item;
       const enter = () => {
         item.hovered = true;
         item.visible = true;
         enqueue(item);
+        convertOnIntent(item);
         show(item);
       };
       const leave = () => {
         item.hovered = false;
+        item.controller?.abort();
         if (current === item) hide();
         if (!observer) {
           item.visible = false;
