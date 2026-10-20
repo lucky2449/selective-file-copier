@@ -52,7 +52,17 @@ export async function writeZip(
   for (let i = 0; i < entries.length; i++) {
     check();
     const { name, file } = entries[i];
-    if (file.size > 0xffffffff)
+    const expectedSize = file.size;
+    const mismatch = () =>
+      Object.assign(
+        new Error(
+          "원본 파일 크기가 달라 ZIP 생성을 중단했습니다. 원본을 다시 선택하세요.",
+        ),
+        { code: "SIZE_MISMATCH" },
+      );
+    if (!Number.isSafeInteger(expectedSize) || expectedSize < 0)
+      throw mismatch();
+    if (expectedSize > 0xffffffff)
       throw new Error("4GB가 넘는 파일은 저장 폴더로 직접 복사하세요.");
     const filename = encoder.encode(name),
       start = offset,
@@ -77,11 +87,15 @@ export async function writeZip(
         check();
         const { done, value } = await reader.read();
         if (done) break;
+        // Reject the overflowing chunk before it reaches the output.
+        if (value.byteLength > expectedSize - size) throw mismatch();
         crc = updateCRC(crc, value);
         size += value.byteLength;
         await write(value);
-        progress(i, entries.length, size, file.size);
+        progress(i, entries.length, size, expectedSize);
       }
+      // Never finalize an entry or start the next file after a short read.
+      if (size !== expectedSize) throw mismatch();
     } finally {
       await reader.cancel().catch(() => {});
       reader.releaseLock();

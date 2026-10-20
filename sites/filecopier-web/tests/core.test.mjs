@@ -359,3 +359,85 @@ test("an exact input extension must not hide selected same-stem files in another
     entries[0],
   );
 });
+for (const actual of [1, 3]) {
+  test(`ZIP rejects per-file size mismatch (${actual}/2) before finalizing or reading next file`, async () => {
+    const parts = [],
+      progress = [];
+    let cancelled = false,
+      released = false,
+      nextRead = false,
+      reads = 0;
+    const file = {
+      size: 2,
+      stream: () => ({
+        getReader: () => ({
+          read: async () =>
+            reads++
+              ? { done: true }
+              : { done: false, value: new Uint8Array(actual) },
+          cancel: async () => {
+            cancelled = true;
+          },
+          releaseLock: () => {
+            released = true;
+          },
+        }),
+      }),
+    };
+    await assert.rejects(
+      writeZip(
+        [
+          { name: "a", file },
+          {
+            name: "b",
+            file: {
+              size: 2,
+              stream() {
+                nextRead = true;
+                throw Error("unexpected");
+              },
+            },
+          },
+        ],
+        { write: async (b) => parts.push(b) },
+        { progress: (...args) => progress.push(args) },
+      ),
+      { code: "SIZE_MISMATCH" },
+    );
+    assert.equal(nextRead, false);
+    assert.equal(cancelled, true);
+    assert.equal(released, true);
+    assert.equal(parts.length, actual === 1 ? 3 : 2);
+    assert.ok(progress.every((p) => p[0] === 0));
+  });
+}
+test("ZIP accepts empty and exact multi-chunk files without changing source bytes", async () => {
+  const original = new Uint8Array([1, 2, 3]);
+  const before = original.slice();
+  const parts = [];
+  await writeZip(
+    [
+      { name: "empty", file: new Blob() },
+      {
+        name: "chunks",
+        file: {
+          size: 3,
+          stream: () =>
+            new ReadableStream({
+              start(c) {
+                c.enqueue(original.subarray(0, 1));
+                c.enqueue(original.subarray(1));
+                c.close();
+              },
+            }),
+        },
+      },
+    ],
+    { write: async (b) => parts.push(b) },
+  );
+  assert.deepEqual(original, before);
+  assert.equal(
+    new DataView(parts.at(-1).buffer).getUint32(0, true),
+    0x06054b50,
+  );
+});

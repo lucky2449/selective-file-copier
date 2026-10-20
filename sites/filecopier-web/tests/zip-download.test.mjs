@@ -190,3 +190,27 @@ test("cancellation after expired cleanup skips quota estimate and new temporary 
   );
   assert.equal(state.created, 0);
 });
+for (const native of [false, true]) {
+  test(`offsetting file size errors cannot pass ZIP total-size validation (OPFS=${native})`, async () => {
+    const { state, storage } = fixture();
+    const a = new Blob(["a"]),
+      b = new Blob(["bbb"]);
+    Object.defineProperty(a, "size", { value: 2 });
+    Object.defineProperty(b, "size", { value: 2 });
+    await assert.rejects(
+      prepareZipDownload(
+        [
+          { name: "a", file: a },
+          { name: "b", file: b },
+        ],
+        native ? { storage } : {},
+      ),
+      { code: "SIZE_MISMATCH" },
+    );
+    assert.equal(await a.text(), "a");
+    assert.equal(await b.text(), "bbb");
+    assert.equal(state.closed, 0);
+    assert.equal(state.aborted, native ? 1 : 0);
+    assert.equal(state.removed.length, native ? 1 : 0);
+  });
+}
