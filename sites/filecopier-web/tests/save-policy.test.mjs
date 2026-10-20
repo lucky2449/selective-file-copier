@@ -62,7 +62,7 @@ test("updated save notice reappears after legacy acceptance and describes enable
   });
   assert.equal(ask(), true);
   assert.equal(calls, 1);
-  assert.match(message, /선택 동의 후/);
+  assert.match(message, /接続|접속 시부터/);
   assert.match(message, /Cloudflare/);
   assert.match(message, /90일/);
   assert.match(

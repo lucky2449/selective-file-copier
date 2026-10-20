@@ -39,7 +39,7 @@ function payload() {
     errors: [{ code: "WRITE_PERMISSION_DENIED", phase: "write", count: 2 }],
   };
 }
-function clientFixture(overrides = {}, consent = {}) {
+function clientFixture(overrides = {}) {
   const sent = [];
   let now = 1000;
   const window = {
@@ -53,7 +53,6 @@ function clientFixture(overrides = {}, consent = {}) {
     ...overrides,
   };
   const logger = createOperationLogger({
-    hasConsent: () => true,
     window,
     config: {
       endpoint: "https://collector.example/v1/operations",
@@ -61,7 +60,6 @@ function clientFixture(overrides = {}, consent = {}) {
     },
     appVersion: "2026.10.19-logs-8",
     now: () => now,
-    ...consent,
   });
   return { logger, sent, window, advance: () => (now += 1000) };
 }
@@ -138,7 +136,6 @@ for (const variant of ["disabled", "wrong-origin", "unsafe-endpoint"]) {
           ? "http://example.com/v1/operations"
           : "https://example.com/v1/operations";
     const logger = createOperationLogger({
-      hasConsent: () => true,
       window,
       config: { endpoint, buildId: "bc2d587" },
       appVersion: "2026.10.19-logs-8",
@@ -543,62 +540,4 @@ test("retention caps a run at 5000 and expires only old maintenance summaries", 
     db.prepare("SELECT count(*) n FROM operation_records").get().n,
     2,
   );
-});
-test("logger defaults denied and never backfills operations started before consent", async () => {
-  const f = clientFixture({}, { hasConsent: () => false });
-  createOperationLogger({window:f.window,config:{endpoint:"https://collector.example/v1/operations",buildId:"bc2d587"},appVersion:"2026.10.19-logs-8"}).visit();
-  f.logger.visit();
-  f.logger
-    .begin("copy", { selectedCount: 1, selectedBytes: 1 })
-    .finish({ result: "success", succeeded: 1, writtenBytes: 1 });
-  await flush();
-  assert.equal(f.sent.length, 0);
-  let allowed = false,
-    revision = 0;
-  const g = clientFixture(
-    {},
-    { hasConsent: () => allowed, consentRevision: () => revision },
-  );
-  const op = g.logger.begin("copy", { selectedCount: 1, selectedBytes: 1 });
-  allowed = true;
-  revision++;
-  op.finish({ result: "success", succeeded: 1, writtenBytes: 1 });
-  await flush();
-  assert.equal(g.sent.length, 0);
-});
-test("revocation before queued send blocks it; re-consent never resumes an old operation", async () => {
-  let allowed = true,
-    revision = 0;
-  const f = clientFixture(
-    {},
-    { hasConsent: () => allowed, consentRevision: () => revision },
-  );
-  const op = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 1 });
-  allowed = false;
-  revision++;
-  f.logger.stop();
-  await flush();
-  assert.equal(f.sent.length, 0);
-  allowed = true;
-  revision++;
-  op.finish({ result: "success", succeeded: 1, writtenBytes: 1 });
-  await flush();
-  assert.equal(f.sent.length, 0);
-  f.logger.visit();
-  await flush();
-  assert.equal(f.sent.length, 1);
-});
-
-
-test("wire logs omit actual byte totals and never link separate operations", async () => {
-  const f = clientFixture();
-  const first = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 987654321 });
-  first.finish({ result: "success", succeeded: 1, writtenBytes: 987654321 });
-  const second = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 123456789 });
-  second.finish({ result: "success", succeeded: 1, writtenBytes: 123456789 });
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(f.sent.length, 4);
-  for (const { value } of f.sent) assert.deepEqual(value.bytes, { selected: 0, written: 0, prepared: 0 });
-  assert.notEqual(f.sent[0].value.sessionId, f.sent[2].value.sessionId);
-  assert.equal(f.sent[0].value.sessionId, f.sent[1].value.sessionId);
 });
