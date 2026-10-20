@@ -1,5 +1,5 @@
-import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-3";
-import { privacyReady } from "./privacy.mjs?v=privacy-3";
+import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-4";
+import { privacyReady } from "./privacy.mjs?v=privacy-4";
 const set = (id, text) => {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
@@ -15,7 +15,7 @@ for (const kind of ["analytics", "logs"]) {
     "policy-" + kind + "-status",
     ready
       ? "별도 선택 동의 후 전송 (국가 범위 확인 중)"
-      : "설정 확인 전 신규 전송 중지",
+      : "현재 신규 수집·전송 중지",
   );
   set(
     "policy-" + kind + "-countries",

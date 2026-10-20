@@ -200,3 +200,12 @@ test("explicit operator resume still requires separate consent and preserves unk
   c.analytics.processingScope = "";
   assert.equal(privacyReady(c, "analytics"), false);
 });
+
+
+test("published config disables both providers even with old full consent", async () => {
+  const { privacyConfig } = await import("../dist/privacy-config.mjs");
+  const f = fixture(privacyConfig), p = f.create();
+  p.save(all);
+  assert.equal(p.allowed("analytics"), false);
+  assert.equal(p.allowed("logs"), false);
+});

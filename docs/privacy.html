@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>개인정보 처리방침 · 파일모아</title>
-    <link rel="stylesheet" href="./style.css?v=privacy-3" />
-    <script type="module" src="./privacy-page.mjs?v=privacy-3"></script>
+    <link rel="stylesheet" href="./style.css?v=privacy-4" />
+    <script type="module" src="./privacy-page.mjs?v=privacy-4"></script>
     <style>
       .policy {
         max-width: 920px;
@@ -51,19 +51,14 @@
       <a href="./">← 파일모아로 돌아가기</a>
       <h1>개인정보 처리방침</h1>
       <p>
-        시행일·버전: <span id="policy-version">2026-10-20.3</span
+        시행일·버전: <span id="policy-version">2026-10-20.4</span
         ><br />운영·개인정보 문의 담당:
         <span id="policy-operator">파일모아 운영자</span><br />문의:
         <a id="policy-email" href="mailto:sjm2449@naver.com"
           >sjm2449@naver.com</a
         >
       </p>
-      <p class="policy-alert">
-        선택 동의한 경우에만 GA4 통계와 작업 기록을 외부로 전송합니다.
-        Google의 실제 저장·접근 국가, D1의 정확한 저장·백업 국가 및
-        Worker·통신 메타데이터의 처리 국가는 아직 확인 중입니다.
-        검색·복사·ZIP은 동의 없이 사용할 수 있습니다.
-      </p>
+      <p class="policy-alert">현재 선택 정보 수집 화면을 제거하고 GA4와 서버 작업 로그의 신규 수집·전송을 중지했습니다. 아래 관련 항목은 이전 수집 내역과 보관·삭제 안내입니다. 검색·복사·ZIP 기능은 계속 사용할 수 있습니다.</p>
       <h2>1. 기기 안에서 처리하는 사진·파일 정보</h2>
       <p>
         선택한 파일의 내용·파일명·폴더 경로·찾을 목록은 브라우저에서 처리하며
@@ -97,7 +92,7 @@
               수 있습니다. 앱은 URL 검색어·외부 유입 경로를 분석 이벤트에 넣지
               않습니다.
             </td>
-            <td id="policy-analytics-status">선택 동의 전 신규 전송 중지</td>
+            <td id="policy-analytics-status">현재 신규 수집·전송 중지</td>
           </tr>
           <tr>
             <td>작업 진단 기록</td>
@@ -109,7 +104,7 @@
               고정 오류 종류, 앱·배포·브라우저 종류와 주요 버전,
               클라이언트·서버 시각, 소요 시간, 서버 기록 ID·해시·서명
             </td>
-            <td id="policy-logs-status">선택 동의 전 신규 전송 중지</td>
+            <td id="policy-logs-status">현재 신규 수집·전송 중지</td>
           </tr>
         </tbody>
       </table>
@@ -243,10 +238,7 @@
       </p>
       <h2>6. 선택 변경·철회와 이용자 권리</h2>
       <p>
-        메인 화면 하단 ‘수집 설정’에서 항목별 선택을 바꾸거나 ‘동의 안 함’을
-        누를 수 있습니다. 철회 후 앱은 신규 전송을 차단하고 대기 중인 로그
-        요청의 중단을 시도합니다. 다른 탭의 설정 변경도 반영합니다.
-        브라우저·기기별 선택은 서로 자동 동기화되지 않습니다.
+        현재 수집 설정 화면은 제거했으며, 이전 동의 여부와 관계없이 새 버전은 신규 전송을 하지 않습니다. 이전 버전이 열린 탭은 새로고침하거나 닫아 주세요. 이미 전송된 기록의 삭제·처리 정지는 아래 이메일로 요청할 수 있습니다.
       </p>
       <p>
         열람·정정·삭제·처리 정지 등 요청은 위 문의 이메일로 보내주세요. 최소한의
@@ -265,8 +257,7 @@
       </p>
       <p>
         localStorage에는 수집 선택과 저장 전 안내 확인 여부를 기억합니다. 선택
-        정보를 지우면 다음 방문에서 기본 꺼짐으로 다시 선택받습니다. 브라우저가
-        저장을 차단하면 현재 탭에서만 선택이 유지될 수 있습니다.
+        정보가 남아 있어도 현재 버전에서는 수집을 재개하지 않습니다. 브라우저 사이트 데이터 설정에서 기존 쿠키·선택 기록을 삭제할 수 있습니다.
         <a
           href="https://tools.google.com/dlpage/gaoptout?hl=ko"
           target="_blank"
