@@ -178,3 +178,25 @@ test("privacy panel starts unchecked and saves rejection without blocking core U
   get("privacy-settings").handlers.click();
   assert.equal(get("privacy-panel").hidden, false);
 });
+
+
+test("explicit operator resume still requires separate consent and preserves unknown country facts", () => {
+  const c = config();
+  c.analytics.verified = false;
+  c.analytics.countries = [];
+  c.analytics.collectionEnabled = true;
+  c.analytics.processingScope = "Actual countries unconfirmed";
+  const f = fixture(c), p = f.create();
+  assert.equal(privacyReady(c, "analytics"), true);
+  assert.equal(p.allowed("analytics"), false);
+  p.save({ analyticsUse: true });
+  assert.equal(p.allowed("analytics"), false);
+  p.save(all);
+  assert.equal(p.allowed("analytics"), true);
+  p.save({});
+  assert.equal(p.allowed("analytics"), false);
+  assert.deepEqual(c.analytics.countries, []);
+  assert.equal(c.analytics.verified, false);
+  c.analytics.processingScope = "";
+  assert.equal(privacyReady(c, "analytics"), false);
+});

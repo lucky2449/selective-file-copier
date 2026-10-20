@@ -6,11 +6,14 @@ export function privacyReady(config, kind) {
   return Boolean(
     config?.contactEmail &&
       config?.operatorName &&
-      provider?.verified === true &&
+      (provider?.verified === true ||
+        (provider?.collectionEnabled === true &&
+          typeof provider.processingScope === "string" &&
+          provider.processingScope.trim())) &&
       provider.recipient &&
       provider.contact &&
       Array.isArray(provider.countries) &&
-      provider.countries.length &&
+      (provider.countries.length || provider.collectionEnabled === true) &&
       provider.countries.every(
         (country) => typeof country === "string" && country.trim(),
       ) &&
@@ -156,7 +159,7 @@ export function bindPrivacy({
         config,
         kind,
       )
-        ? `이전 국가: ${config[kind].countries.join(", ")} · 보유: ${kind === "analytics" ? config.analytics.retentionMonths + "개월" : config.logs.retentionDays + "일 정리 기준"} · 동의 후 이용 시 HTTPS 전송`
+        ? `이전 국가: ${config[kind].countries.length ? config[kind].countries.join(", ") : config[kind].processingScope} · 보유: ${kind === "analytics" ? config.analytics.retentionMonths + "개월" : config.logs.retentionDays + "일 정리 기준"} · 동의 후 이용 시 HTTPS 전송`
         : `${label} 확인 전에는 전송하지 않습니다.`;
     changed();
   }

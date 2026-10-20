@@ -1,14 +1,14 @@
-import { createPrivacy, bindPrivacy } from "./privacy.mjs?v=privacy-1";
-import { privacyConfig } from "./privacy-config.mjs?v=privacy-1";
+import { createPrivacy, bindPrivacy } from "./privacy.mjs?v=privacy-2";
+import { privacyConfig } from "./privacy-config.mjs?v=privacy-2";
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=decoder-license-1";
-import { createOperationLogger } from "./operation-log.mjs?v=privacy-1";
+import { createOperationLogger } from "./operation-log.mjs?v=privacy-2";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=privacy-1";
-import { createAnalytics } from "./analytics.mjs?v=privacy-1";
+} from "./save-policy.mjs?v=privacy-2";
+import { createAnalytics } from "./analytics.mjs?v=privacy-2";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";

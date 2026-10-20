@@ -1,5 +1,5 @@
-import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-1";
-import { privacyReady } from "./privacy.mjs?v=privacy-1";
+import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-2";
+import { privacyReady } from "./privacy.mjs?v=privacy-2";
 const set = (id, text) => {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
@@ -14,14 +14,14 @@ for (const kind of ["analytics", "logs"]) {
   set(
     "policy-" + kind + "-status",
     ready
-      ? "확인된 설정에 따라 선택 동의 후 전송"
+      ? "별도 선택 동의 후 전송 (국가 범위 확인 중)"
       : "설정 확인 전 신규 전송 중지",
   );
   set(
     "policy-" + kind + "-countries",
     provider.countries.length
       ? provider.countries.join(", ")
-      : "미확인 — 국가·처리 범위를 확인하기 전에는 신규 이전하지 않습니다.",
+      : provider.processingScope || "미확인 — 신규 전송 중지",
   );
 }
 set(

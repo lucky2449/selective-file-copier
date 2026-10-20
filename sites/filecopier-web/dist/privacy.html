@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>개인정보 처리방침 · 파일모아</title>
-    <link rel="stylesheet" href="./style.css?v=privacy-1" />
-    <script type="module" src="./privacy-page.mjs?v=privacy-1"></script>
+    <link rel="stylesheet" href="./style.css?v=privacy-2" />
+    <script type="module" src="./privacy-page.mjs?v=privacy-2"></script>
     <style>
       .policy {
         max-width: 920px;
@@ -59,10 +59,10 @@
         >
       </p>
       <p class="policy-alert">
-        GA4의 실제 보관 설정과 Cloudflare D1의 저장 국가·국외 처리 범위를
-        확인하기 전에는 선택 통계·작업 기록의 신규 전송을 중지합니다. 확인한
-        정보로 방침을 갱신한 후 별도 선택을 받습니다. 검색·복사·ZIP은 동의 없이
-        사용할 수 있습니다.
+        선택 동의한 경우에만 GA4 통계와 작업 기록을 외부로 전송합니다.
+        Google의 실제 저장·접근 국가, D1의 정확한 저장·백업 국가 및
+        Worker·통신 메타데이터의 처리 국가는 아직 확인 중입니다.
+        검색·복사·ZIP은 동의 없이 사용할 수 있습니다.
       </p>
       <h2>1. 기기 안에서 처리하는 사진·파일 정보</h2>
       <p>
@@ -97,7 +97,7 @@
               수 있습니다. 앱은 URL 검색어·외부 유입 경로를 분석 이벤트에 넣지
               않습니다.
             </td>
-            <td id="policy-analytics-status">설정 확인 전 신규 전송 중지</td>
+            <td id="policy-analytics-status">선택 동의 전 신규 전송 중지</td>
           </tr>
           <tr>
             <td>작업 진단 기록</td>
@@ -109,7 +109,7 @@
               용량·처리량, 고정 오류 종류, 앱·배포·브라우저 버전,
               클라이언트·서버 시각, 소요 시간, 서버 기록 ID·해시·서명
             </td>
-            <td id="policy-logs-status">설정 확인 전 신규 전송 중지</td>
+            <td id="policy-logs-status">선택 동의 전 신규 전송 중지</td>
           </tr>
         </tbody>
       </table>
@@ -154,9 +154,9 @@
       </p>
       <h2>4. 외부 처리와 국외 이전</h2>
       <p>
-        국외 이전은 각 항목의 별도 동의를 근거로 합니다. 실제 국가·기간을
-        확인하지 않은 항목은 동의를 받을 수 없도록 비활성화합니다. 각 항목의
-        상세 정보는 다음과 같습니다.
+        외부 전송은 수집·이용과 국외 이전을 각각 선택한 경우에만 시작합니다.
+        구체적인 국가 범위는 아래와 같이 확인 중이며, 이 안내나 선택 동의만으로
+        관련 법적 요건의 충족을 보장하지 않습니다.
       </p>
       <table>
         <thead>
@@ -179,10 +179,10 @@
               >
             </td>
             <td id="policy-analytics-countries">
-              미확인 — 확인 전 신규 이전 중지
+              구체적인 국가 미확인 — 상세 내용 확인 후 선택
             </td>
             <td>
-              설정 확인 및 동의 후 방문·기능 사용 시 HTTPS로 전송 / 이용 통계
+              동의 후 방문·기능 사용 시 HTTPS로 전송 / 이용 통계
               분석 / 3항에 표시한 확인된 GA4 보유 설정에 따름
             </td>
           </tr>
@@ -196,9 +196,9 @@
                 >개인정보 정책·연락처</a
               >
             </td>
-            <td id="policy-logs-countries">미확인 — 확인 전 신규 이전 중지</td>
+            <td id="policy-logs-countries">구체적인 국가 미확인 — 상세 내용 확인 후 선택</td>
             <td>
-              설정 확인 및 동의 후 방문 및 작업 시작·종료 시 HTTPS로 전송 / 로그
+              동의 후 방문 및 작업 시작·종료 시 HTTPS로 전송 / 로그
               수집·DB 호스팅과 오류 분석 / 운영자 DB는 90일 정리 기준, 제공자
               자체 통신 정보는 제공자 정책 적용
             </td>

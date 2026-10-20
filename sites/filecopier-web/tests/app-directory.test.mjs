@@ -1,4 +1,4 @@
-import { privacyConfig } from "../dist/privacy-config.mjs?v=privacy-1";
+import { privacyConfig } from "../dist/privacy-config.mjs?v=privacy-2";
 import { createPrivacy, PRIVACY_KEY } from "../dist/privacy.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
