@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "package": "libraw-wasm-nothread",
+  "version": "1.6.0-nothread.1",
+  "npmTarball": "https://registry.npmjs.org/libraw-wasm-nothread/-/libraw-wasm-nothread-1.6.0-nothread.1.tgz",
+  "npmIntegrity": "sha512-yiT0J6a0PZQmRNGviCtEUl8Fq0+UxNZkSVklIDkCtq8SPxhQVZFDUDO7rSEafr+bItfzIUVmYB5ttYnvY9nucQ==",
+  "upstreamFilesMatched": true,
+  "independentlyRebuilt": false,
+  "sources": {
+    "LibRaw": {
+      "version": "0.22.1",
+      "commit": "b860248a89d9082b8e0a1e202e516f46af9adb29",
+      "sourceUrl": "https://codeload.github.com/LibRaw/LibRaw/tar.gz/b860248a89d9082b8e0a1e202e516f46af9adb29",
+      "sha256": "f5da1e522ea195b54b30f3ff105ef2193daa04ea165dea825b4d6fe9d886395b"
+    },
+    "Little-CMS": {
+      "version": "2.19.1",
+      "commit": "21c582a594fe5279f90c0b93437c398f93bf62b0",
+      "sourceUrl": "https://codeload.github.com/mm2/Little-CMS/tar.gz/21c582a594fe5279f90c0b93437c398f93bf62b0",
+      "sha256": "0d953b598c25cc202a8f77e584fd4c7d285f759100fd391f77eca32574717509"
+    },
+    "libjpeg": {
+      "sourceUrl": "https://storage.googleapis.com/webassembly/emscripten-ports/jpegsrc.v9f.tar.gz",
+      "sha256": "04705c110cb2469caa79fb71fba3d7bf834914706e9641a4589485c1f832565b",
+      "sha512": "7f733d79cf176c690dcf127352f9aa7ec48000455944f286faae606cdeada6f6865b4a3f9f01bda8947b5b1089bb3e52d2b56879b6e871279ec5cbd1829304dc"
+    },
+    "libpng": {
+      "sourceUrl": "https://storage.googleapis.com/webassembly/emscripten-ports/libpng-1.6.58.tar.gz",
+      "sha256": "8c9b05b675ca7301a458df2c2e46f26e1d41ff36b8863f8c33530bc58c2e6225",
+      "sha512": "177d81fd1ba1a46ff64da7f24260814876bd0a27ee5bed6dc9dbdd1fe28f3a67cb6f11c74a68f8380a9a7ab0d95c0022b847b1a3e4d939f2a562274627205789"
+    },
+    "zlib": {
+      "sourceUrl": "https://github.com/madler/zlib/archive/refs/tags/v1.3.2.tar.gz",
+      "sha256": "b99a0b86c0ba9360ec7e78c4f1e43b1cbdf1e6936c8fa0f6835c0cd694a495a1",
+      "sha512": "16fea4df307a68cf0035858abe2fd550250618a97590e202037acd18a666f57afc10f8836cbbd472d54a0e76539d0e558cb26f059d53de52ff90634bbf4f47d4"
+    },
+    "wrapper": {
+      "version": "1.6.0-nothread.1",
+      "commit": "d03be9f0eb0efda42e807a87045b4ac18ad8ca98",
+      "sourceUrl": "https://codeload.github.com/garbarok/libraw-wasm-nothread/tar.gz/d03be9f0eb0efda42e807a87045b4ac18ad8ca98",
+      "upstreamArchiveSha256": "263af59fe956a1725ccec4690ba09fb8605fe1822fe028866c1ee6e9c8fef0f4",
+      "sha256": "84f9e75f469074a657165d36cd1bf47202be018a497b1162a369a79ae798e6dd",
+      "archiveContents": "Source files only; sample photos, prebuilt libraries and duplicate dist omitted"
+    }
+  },
+  "files": {
+    "BUILDING.txt": "c85851b7111d354d39d070d64e4430c93da186a16aabc07a371c351479ce7227",
+    "Emscripten-LICENSE.txt": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86",
+    "IJG-JPEG-README.txt": "7c25493a9f64fed34d01445467341bda77bc1cdbeccbe33558659ef173fb9ff2",
+    "libcxx-LICENSE.txt": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b",
+    "libpng-LICENSE.txt": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526",
+    "LibRaw-COPYRIGHT.txt": "574c88f5dd59414cfc896293a63defbc2d525a418ed413d7ab7dcc43cf79c509",
+    "LibRaw-LICENSE.CDDL.txt": "0e3098d2d54a12434715f6679ea408d57da5e8d613c385c58ecc6fe5d30cc81f",
+    "LibRaw-LICENSE.LGPL.txt": "eea173a556abac0370461e57e12aab266894ea6be3874c2be05fd87871f75449",
+    "LibRaw-Wasm-ISC.txt": "89ed72df6b5aadc6a6db4a0e45dd4e06602c4b56173d299f36064b3d9b2abff2",
+    "libraw.js": "3de7193a9b1cbaafb118a4d9c14a63e3c7500e74378ac64d7858b59c09fe2805",
+    "libraw.js.map": "328d43d3d9e39e2d73b45116df5961a26c32a320d8b9c2accd8007f1fe96516f",
+    "libraw.wasm": "952ad840b341a420d0433979820917bca3716c3d51eefd091c7a1011c84995f4",
+    "Little-CMS-MIT.txt": "6dbd60437f8ef91d8de1f08ad75882547fd4931bfcc3566a0735f28db1484d31",
+    "musl-COPYRIGHT.txt": "b870108ec5e7790e9f9919064f1b9421d62d5f9b0e6c230c6adf7ea2da62e97b",
+    "NOTICE.txt": "966696880c84768d10b565dc2b7b661ee4d33660363ba7e62eecc6d235200088",
+    "source-bundle.zip": "ebe974776d087cc8fc1ac5cc40487e5e949635daf6a8d518c59f807e4311d255",
+    "zlib-LICENSE.txt": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2"
+  }
+}

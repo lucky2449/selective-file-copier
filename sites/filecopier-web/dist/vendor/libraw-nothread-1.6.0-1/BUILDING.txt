@@ -1,0 +1,25 @@
+RAW decoder source distribution (2026-10-20)
+
+Package libraw-wasm-nothread@1.6.0-nothread.1
+Wrapper commit d03be9f0eb0efda42e807a87045b4ac18ad8ca98
+LibRaw commit b860248a89d9082b8e0a1e202e516f46af9adb29 (0.22.1)
+Little CMS commit 21c582a594fe5279f90c0b93437c398f93bf62b0 (lcms2.19.1)
+Emscripten 6.0.10; upstream release workflow included.
+
+All source archives retain their upstream license/copyright files.
+LibRaw is distributed under CDDL 1.0 (its alternative LGPL is also included).
+The build removes the OpenMP block from LibRaw configure.ac. The modified
+file is provided under modified/LibRaw/configure.ac, with a contributor notice.
+No RAW decoder logic was modified by FileMoa.
+
+To rebuild, install Emscripten 6.0.10 and autoconf/automake/libtool, unpack the
+wrapper source, then run FORCE_LIBS=1 bash compileLibraw.sh as in the included
+release workflow. The original script pins dependency tags; check the resulting
+LibRaw and Little-CMS checkout SHAs against the commits above before using it.
+For offline source inspection extract sources/*.tar.gz, apply the supplied
+modified configure.ac to LibRaw, and use the wrapper/build recipe as reference.
+Additional source: https://github.com/emscripten-core/emscripten/tree/6.0.10
+
+The distributed JS/WASM match the npm tarball and GitHub commit byte-for-byte.
+FileMoa has not independently rebuilt them; bit-reproducible compilation is not
+claimed. Source package hashes and runtime hashes are recorded in manifest.json.

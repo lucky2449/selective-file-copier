@@ -1,0 +1,13 @@
+FileMoa RAW decoder: libraw-wasm-nothread 1.6.0-nothread.1
+Runtime JS/WASM: unmodified, verified against npm and pinned upstream commit.
+Wrapper: ISC, ybouane and contributors; Oscar Gallego Ruiz (fork).
+LibRaw 0.22.1: CDDL 1.0, LibRaw LLC and contributors. CDDL applies to LibRaw
+and its covered modifications, not automatically to FileMoa's separate code.
+Little CMS 2.19.1: MIT, Marti Maria and contributors.
+IJG JPEG 9f, libpng 1.6.58, zlib 1.3.2, Emscripten 6.0.10 and runtime
+licenses/notices are supplied alongside this file and in source-bundle.zip.
+LibRaw subcomponent notices are preserved in the full source archive.
+Download corresponding sources: ./source-bundle.zip (free, no registration).
+Build/source details: ./BUILDING.txt. Integrity/versions: ./manifest.json.
+Library authors do not endorse FileMoa or promise its safety or suitability.
+Photos stay on the user's device. This library performs no photo upload.

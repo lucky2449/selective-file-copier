@@ -1,4 +1,4 @@
-import LibRawModule from "./vendor/libraw-1.1.2/libraw.js";
+import LibRawModule from "./vendor/libraw-nothread-1.6.0-1/libraw.js";
 import { RAW_CONVERT_LIMIT, RAW_PIXEL_LIMIT } from "./raw-convert.mjs";
 
 // Dedicated to exactly one input. Main thread terminates us on leave/timeout.

@@ -1,4 +1,4 @@
-import { createRawConverter } from "./raw-convert.mjs?v=raw-convert-1";
+import { createRawConverter } from "./raw-convert.mjs?v=decoder-license-1";
 import { extractRawPreview } from "./raw-preview.mjs?v=orientation-1";
 import { extension, normalize, stem } from "./core.mjs?v=selected-formats-1";
 import { isPhotoFile } from "./photo-pairs.mjs?v=selected-formats-1";

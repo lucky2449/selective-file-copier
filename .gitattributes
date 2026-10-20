@@ -11,3 +11,7 @@
 .gitignore text eol=lf
 .gitattributes text eol=lf
 .editorconfig text eol=lf
+
+# Preserve vendor provenance hashes and original third-party bytes.
+sites/filecopier-web/dist/vendor/libraw-nothread-1.6.0-1/** -text
+docs/vendor/libraw-nothread-1.6.0-1/** -text

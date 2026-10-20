@@ -30,7 +30,7 @@ export function createRawConverter(window) {
         current = abort;
         try {
           worker = new window.Worker(
-            new URL("./raw-convert-worker.mjs", import.meta.url),
+            new URL("./raw-convert-worker.mjs?v=decoder-license-1", import.meta.url),
             { type: "module" },
           );
           worker.onmessage = ({ data }) => {
