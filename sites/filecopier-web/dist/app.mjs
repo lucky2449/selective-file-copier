@@ -1,14 +1,14 @@
-import { createPrivacy, bindPrivacy } from "./privacy.mjs?v=privacy-2";
-import { privacyConfig } from "./privacy-config.mjs?v=privacy-2";
+import { createPrivacy, bindPrivacy } from "./privacy.mjs?v=privacy-3";
+import { privacyConfig } from "./privacy-config.mjs?v=privacy-3";
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=decoder-license-1";
-import { createOperationLogger } from "./operation-log.mjs?v=privacy-2";
+import { createOperationLogger } from "./operation-log.mjs?v=privacy-3";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=privacy-2";
-import { createAnalytics } from "./analytics.mjs?v=privacy-2";
+} from "./save-policy.mjs?v=privacy-3";
+import { createAnalytics } from "./analytics.mjs?v=privacy-3";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
@@ -67,13 +67,9 @@ function operationSize(files) {
 }
 const analytics = createAnalytics({ measurementId, window, document, hasConsent: () => privacy.allowed("analytics") });
 if (analytics.configured) $("analytics-notice").hidden = false;
-let logsActive = false;
 bindPrivacy({ window, document, config: privacyConfig, privacy, changed() {
   if (privacy.allowed("analytics")) analytics.start(); else analytics.stop();
-  if (privacy.allowed("logs")) {
-    if (!logsActive) operationLogger.visit();
-    logsActive = true;
-  } else { operationLogger.stop(); logsActive = false; }
+  if (!privacy.allowed("logs")) operationLogger.stop();
 } });
 const canChooseDestination = typeof window.showDirectoryPicker === "function";
 const defaultDestinationLabel = canChooseDestination

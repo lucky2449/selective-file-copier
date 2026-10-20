@@ -1,5 +1,5 @@
-import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-2";
-import { privacyReady } from "./privacy.mjs?v=privacy-2";
+import { privacyConfig as config } from "./privacy-config.mjs?v=privacy-3";
+import { privacyReady } from "./privacy.mjs?v=privacy-3";
 const set = (id, text) => {
   const node = document.getElementById(id);
   if (node) node.textContent = text;

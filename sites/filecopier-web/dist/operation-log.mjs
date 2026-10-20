@@ -105,7 +105,8 @@ export function createOperationLogger({
     if (!enabled || !hasConsent()) return { error() {}, finish() {} };
     let operationId;
     try {
-      sessionId ||= window.crypto.randomUUID();
+      // A fresh ID per operation avoids linking separate jobs in the server log.
+      sessionId = window.crypto.randomUUID();
       operationId = window.crypto.randomUUID();
     } catch {}
     const start = now();
@@ -138,7 +139,8 @@ export function createOperationLogger({
           result: "started",
           durationMs: 0,
           files: zero,
-          bytes: { selected: selectedBytes, written: 0, prepared: 0 },
+          // Legacy wire fields retained as zero for deployed schema compatibility.
+          bytes: { selected: 0, written: 0, prepared: 0 },
           errors: [],
         },
         revision,
@@ -180,9 +182,9 @@ export function createOperationLogger({
               unprocessed: selectedCount - succeeded - requested - failed,
             },
             bytes: {
-              selected: selectedBytes,
-              written: writtenBytes,
-              prepared: preparedBytes,
+              selected: 0,
+              written: 0,
+              prepared: 0,
             },
             errors: [...errors.values()],
           },

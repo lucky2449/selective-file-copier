@@ -1,7 +1,7 @@
 // Public policy facts only. Never add account credentials here.
 // Verify provider settings and change policyVersion before enabling collection.
 export const privacyConfig = Object.freeze({
-  policyVersion: "2026-10-20.2",
+  policyVersion: "2026-10-20.3",
   operatorName: "파일모아 운영자",
   contactEmail: "sjm2449@naver.com",
   consentDays: 180,

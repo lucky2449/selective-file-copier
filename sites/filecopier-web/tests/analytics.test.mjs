@@ -71,6 +71,8 @@ test("GA4 disables automatic pageviews and advertising and counts one visit", ()
   assert.equal(consent.ad_personalization, "denied");
   const config = h.commands().find(([command]) => command === "config")[2];
   assert.equal(config.send_page_view, false);
+  assert.equal(config.cookie_expires, 60 * 86400);
+  assert.equal(config.cookie_update, false);
   assert.equal(config.allow_google_signals, false);
   assert.equal(config.allow_ad_personalization_signals, false);
   assert.equal(h.commands().filter(([type]) => type === "event").length, 1);

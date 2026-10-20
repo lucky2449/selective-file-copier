@@ -52,7 +52,7 @@ export function createAnalytics({
           cookie_prefix: "filemoa",
           cookie_path: "/selective-file-copier/",
           cookie_domain: "none",
-          cookie_expires: 180 * 86400,
+          cookie_expires: 60 * 86400,
           cookie_update: false,
           allow_google_signals: false,
           allow_ad_personalization_signals: false,

@@ -588,3 +588,17 @@ test("revocation before queued send blocks it; re-consent never resumes an old o
   await flush();
   assert.equal(f.sent.length, 1);
 });
+
+
+test("wire logs omit actual byte totals and never link separate operations", async () => {
+  const f = clientFixture();
+  const first = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 987654321 });
+  first.finish({ result: "success", succeeded: 1, writtenBytes: 987654321 });
+  const second = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 123456789 });
+  second.finish({ result: "success", succeeded: 1, writtenBytes: 123456789 });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(f.sent.length, 4);
+  for (const { value } of f.sent) assert.deepEqual(value.bytes, { selected: 0, written: 0, prepared: 0 });
+  assert.notEqual(f.sent[0].value.sessionId, f.sent[2].value.sessionId);
+  assert.equal(f.sent[0].value.sessionId, f.sent[1].value.sessionId);
+});
