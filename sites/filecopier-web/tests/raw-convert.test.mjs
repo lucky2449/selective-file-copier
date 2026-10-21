@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createRawConverter, RAW_CONVERT_LIMIT } from "../dist/raw-convert.mjs";
+import {
+  createRawConverter,
+  RAW_CONVERT_LIMIT,
+  RAW_CONVERT_TIMEOUT,
+} from "../dist/raw-convert.mjs";
 function fixture() {
   const workers = [];
   let timeout;
@@ -101,4 +105,23 @@ test("RAW converter admits one job and rejects concurrent work without disturbin
   assert.equal(f.workers.length, 1);
   c.cancel();
   await rejected;
+});
+
+test("large RAW above former 64MiB cap is sent to one timed disposable worker without main-thread reading", async () => {
+  const f = fixture(),
+    c = createRawConverter(f.window);
+  const file = {
+    size: 100 * 1024 * 1024,
+    arrayBuffer() {
+      assert.fail("main thread read");
+    },
+  };
+  const p = c.convert(file),
+    rejected = assert.rejects(p, { name: "AbortError" });
+  assert.equal(f.workers.length, 1);
+  assert.equal(f.workers[0].msg.file, file);
+  assert.deepEqual(f.timers, [RAW_CONVERT_TIMEOUT]);
+  c.cancel();
+  await rejected;
+  assert.equal(f.workers[0].stopped, true);
 });

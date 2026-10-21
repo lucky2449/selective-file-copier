@@ -1,5 +1,5 @@
 import LibRawModule from "./vendor/libraw-nothread-1.6.0-1/libraw.js";
-import { RAW_CONVERT_LIMIT, RAW_PIXEL_LIMIT } from "./raw-convert.mjs";
+import { RAW_CONVERT_LIMIT, RAW_PIXEL_LIMIT } from "./raw-convert.mjs?v=raw-compat-1";
 
 // Dedicated to exactly one input. Main thread terminates us on leave/timeout.
 self.onmessage = async ({ data: { file } }) => {

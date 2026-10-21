@@ -1,6 +1,6 @@
-export const RAW_CONVERT_LIMIT = 64 * 1024 * 1024;
-export const RAW_PIXEL_LIMIT = 50_000_000;
-export const RAW_CONVERT_TIMEOUT = 20_000;
+export const RAW_CONVERT_LIMIT = 128 * 1024 * 1024;
+export const RAW_PIXEL_LIMIT = 110_000_000;
+export const RAW_CONVERT_TIMEOUT = 30_000;
 
 // One disposable worker at a time; files are cloned locally, never uploaded.
 export function createRawConverter(window) {
@@ -30,7 +30,7 @@ export function createRawConverter(window) {
         current = abort;
         try {
           worker = new window.Worker(
-            new URL("./raw-convert-worker.mjs?v=decoder-license-1", import.meta.url),
+            new URL("./raw-convert-worker.mjs?v=raw-compat-1", import.meta.url),
             { type: "module" },
           );
           worker.onmessage = ({ data }) => {

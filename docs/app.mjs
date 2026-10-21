@@ -1,11 +1,11 @@
-import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=decoder-license-1";
+import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=raw-compat-1";
 import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=quota-cleanup-1";
+} from "./save-policy.mjs?v=raw-compat-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
