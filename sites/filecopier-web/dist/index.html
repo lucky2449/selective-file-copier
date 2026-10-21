@@ -27,8 +27,8 @@
     <meta name="twitter:image" content="https://lucky2449.github.io/selective-file-copier/social-card-v1.png" />
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
-    <link rel="stylesheet" href="./style.css?v=raw-compat-1" />
-    <script type="module" src="./app.mjs?v=raw-compat-1"></script>
+    <link rel="stylesheet" href="./style.css?v=button-align-1" />
+    <script type="module" src="./app.mjs?v=result-filter-3"></script>
   </head>
   <body>
     <header>
@@ -44,77 +44,90 @@
         </p>
       </section>
       <div class="workspace">
-        <section class="panel">
-          <div class="heading">
-            <h2>복사 준비</h2>
-            <button id="reset" class="text-btn">초기화 ↺</button>
-          </div>
-          <div class="step">
-            <span>01</span>
-            <h3>원본 폴더 선택</h3>
-          </div>
-          <button id="source" class="folder">
-            <span class="folder-icon">▱</span
-            ><strong id="source-name">파일이 있는 폴더를 선택하세요</strong
-            ><span id="source-detail">하위 폴더의 파일까지 함께 검색합니다</span
-            ><b>폴더 선택 ↗</b></button
-          >
-          <input
-            id="folder-input"
-            type="file"
-            webkitdirectory
-            multiple
-            hidden
-          />
-          <div class="step">
-            <span>02</span>
-            <h3>찾을 목록 입력</h3>
-          </div>
-          <div class="input-actions">
-            <button id="reference" class="small-btn">
-              파일에서 이름 가져오기</button
-            ><button id="load-text" class="small-btn">TXT 불러오기</button>
-          </div>
-          <input id="reference-input" type="file" multiple hidden /><input
-            id="text-input"
-            type="file"
-            accept=".txt,text/plain"
-            hidden
-          /><label class="sr-only" for="items">찾을 숫자 또는 파일명 목록</label
-          ><textarea
-            id="items"
-            placeholder="예: 42, 323, 2134&#10;DSC00323.jpg&#10;IMG_001&#10;&#10;숫자, 파일명, 경로를 입력하세요."
-            spellcheck="false"
-          ></textarea>
-          <div class="input-hint">
-            <span>쉼표 · 줄바꿈으로 구분</span
-            ><span id="input-count">0개 항목</span>
-          </div>
-          <div class="step">
-            <span>03</span>
-            <h3>검색 조건</h3>
-          </div>
-          <fieldset id="extension" class="extension-field" aria-labelledby="extension-label">
-            <div class="extension-heading">
-              <span id="extension-label" class="field-label">복사할 파일 확장자</span>
-              <label class="extension-all-option"><input id="extension-all" type="checkbox" title="모든 확장자 선택/해제" /><span id="extension-all-label">모두 선택</span></label>
+        <section class="panel preparation">
+          <div class="preparation-fields">
+            <div class="heading">
+              <h2>복사 준비</h2>
+              <button id="reset" class="text-btn">초기화 ↺</button>
             </div>
-            <div id="extension-options" class="extension-options"></div>
-            <p id="extension-summary" class="extension-summary" aria-live="polite">원본 폴더를 선택하면 확장자가 표시됩니다.</p>
-          </fieldset>
-          <label class="hint">
-            <input id="camera-numbers" type="checkbox" checked />
-            제조사별 사진 번호 후보 포함
-          </label>
-          <p class="hint">추정한 번호는 자동 선택하지 않습니다. 검색 결과에서 파일명과 경로를 확인하세요.</p>
+            <div class="step">
+              <span>01</span>
+              <h3>원본 폴더 선택</h3>
+            </div>
+            <button id="source" class="folder">
+              <span class="folder-icon">▱</span
+              ><strong id="source-name">파일이 있는 폴더를 선택하세요</strong
+              ><span id="source-detail">하위 폴더의 파일까지 함께 검색합니다</span
+              ><b>폴더 선택 ↗</b></button
+            >
+            <input
+              id="folder-input"
+              type="file"
+              webkitdirectory
+              multiple
+              hidden
+            />
+            <div class="step">
+              <span>02</span>
+              <h3>찾을 목록 입력</h3>
+            </div>
+            <div class="input-actions">
+              <button id="reference" class="small-btn">
+                파일에서 이름 가져오기</button
+              ><button id="load-text" class="small-btn">TXT 불러오기</button>
+            </div>
+            <input id="reference-input" type="file" multiple hidden /><input
+              id="text-input"
+              type="file"
+              accept=".txt,text/plain"
+              hidden
+            /><label class="sr-only" for="items">찾을 숫자 또는 파일명 목록</label
+            ><textarea
+              id="items"
+              placeholder="예: 42, 323, 2134&#10;DSC00323.jpg&#10;IMG_001&#10;&#10;숫자, 파일명, 경로를 입력하세요."
+              spellcheck="false"
+            ></textarea>
+            <div class="input-hint">
+              <span>쉼표 · 줄바꿈으로 구분</span
+              ><span id="input-count">0개 항목</span>
+            </div>
+            <div class="step">
+              <span>03</span>
+              <h3>검색 조건</h3>
+            </div>
+            <fieldset id="extension" class="extension-field" aria-labelledby="extension-label">
+              <div class="extension-heading">
+                <span id="extension-label" class="field-label">복사할 파일 확장자</span>
+                <label class="extension-all-option"><input id="extension-all" type="checkbox" title="모든 확장자 선택/해제" /><span id="extension-all-label">모두 선택</span></label>
+              </div>
+              <div id="extension-options" class="extension-options"></div>
+              <p id="extension-summary" class="extension-summary" aria-live="polite">원본 폴더를 선택하면 확장자가 표시됩니다.</p>
+            </fieldset>
+            <label class="hint">
+              <input id="camera-numbers" type="checkbox" checked />
+              제조사별 사진 번호 후보 포함
+            </label>
+            <p class="hint">추정한 번호는 자동 선택하지 않습니다. 검색 결과에서 파일명과 경로를 확인하세요.</p>
+          </div>
           <button id="search" class="primary full">
             파일 찾기 <span>→</span>
           </button>
         </section>
         <section class="panel results">
-          <div class="heading">
-            <h2>검색 결과</h2>
-            <span id="result-label" class="pill">준비 중</span>
+          <div class="heading results-heading">
+            <div class="results-title"><h2>검색 결과</h2><span id="result-label" class="pill">준비 중</span></div>
+            <div id="result-filters" class="result-filter-control" hidden>
+              <details id="result-filter-dropdown">
+                <summary id="result-filter-toggle">표시: <span id="result-filter-label">전체</span><span aria-hidden="true">⌄</span></summary>
+                <div class="result-filter-menu" role="group" aria-label="검색 결과 표시 필터">
+                  <button id="filter-all" type="button" aria-pressed="true">전체 <span id="filter-count-all">0</span></button>
+                  <button id="filter-found" type="button" aria-pressed="false">찾음 <span id="filter-count-found">0</span></button>
+                  <button id="filter-attention" type="button" aria-pressed="false">확인 필요 <span id="filter-count-attention">0</span></button>
+                  <button id="filter-missing" type="button" aria-pressed="false">찾지 못함 <span id="filter-count-missing">0</span></button>
+                  <button id="filter-selected" type="button" aria-pressed="false">선택한 항목 <span id="filter-count-selected">0</span></button>
+                </div>
+              </details>
+            </div>
           </div>
           <div class="stats">
             <div><span>요청 항목</span><strong id="stat-total">0</strong></div>
@@ -126,6 +139,7 @@
               <span>확인 필요</span><strong id="stat-attention">0</strong>
             </div>
           </div>
+          <p id="result-filter-status" class="result-filter-status" role="status" aria-live="polite" hidden></p>
           <div id="empty" class="empty">
             <div class="empty-icon">⌕</div>
             <h3>어떤 파일을 모아볼까요?</h3>
@@ -153,6 +167,7 @@
               </thead>
               <tbody id="rows"></tbody>
             </table>
+            <p id="result-filter-empty" class="result-filter-empty" hidden>이 필터에 해당하는 항목이 없습니다.</p>
             </div>
             <div class="result-summary" aria-label="복사 전 요약" aria-live="polite" aria-atomic="true">
               <div id="summary-selection" class="summary-selection">저장 예정 0개 · 총 0B</div>

@@ -30,7 +30,8 @@ class Element {
   querySelectorAll() {
     return [];
   }
-  setAttribute() {}
+  attributes = {};
+  setAttribute(name, value) { this.attributes[name] = value; }
   remove() {
     this.removed = true;
   }
@@ -38,6 +39,122 @@ class Element {
     return this.fire("click");
   }
 }
+
+test("result dropdown preserves hidden selections and downloads include all selected rows", async () => {
+  const h = await setup();
+  try {
+    await searchInput(h.el, [inputFile("source/A/one.JPG"),inputFile("source/B/two.JPG"),inputFile("source/C/dup.JPG"),inputFile("source/D/dup.JPG")], "A/one.JPG\nB/two.JPG\ndup\nmissing");
+    assert.equal(h.el("filter-count-all").textContent,"4");
+    assert.equal(h.el("filter-count-found").textContent,"2");
+    assert.equal(h.el("filter-count-attention").textContent,"1");
+    assert.equal(h.el("filter-count-missing").textContent,"1");
+    assert.equal(h.el("filter-count-selected").textContent,"2");
+    assert.equal(h.el("stat-attention").textContent,1);
+    const summary=h.el("summary-selection").textContent;
+    await h.el("filter-missing").fire("click");
+    assert.equal(h.el("result-filter-label").textContent,"찾지 못함");
+    assert.equal(h.el("rows").children[0].children.length,1);
+    assert.equal(h.el("select-all").disabled,true);
+    assert.match(h.el("result-filter-status").textContent,/필터 밖 선택 2건/);
+    assert.equal(h.el("summary-selection").textContent,summary);
+    await h.el("copy").fire("click");
+    assert.deepEqual(h.downloads.map(d=>d.name),["one.JPG","two.JPG"]);
+    assert.equal(h.el("filter-missing").attributes["aria-pressed"],"true");
+    await h.el("filter-found").fire("click");
+    assert.equal(h.el("rows").children[0].children.length,2);
+    assert.equal(h.el("select-all").checked,true);
+  } finally { h.restore(); }
+});
+
+test("selecting a confirmation candidate updates counts and shows empty filter without clearing other choices", async () => {
+  const h=await setup();
+  try {
+    await searchInput(h.el,[inputFile("source/A/one.JPG"),inputFile("source/B/dup.JPG"),inputFile("source/C/dup.JPG")],"one\ndup");
+    await h.el("filter-attention").fire("click");
+    const row=h.el("rows").children[0].children[0];
+    const select=row.children[1].children.find(n=>n.className==="row-select");
+    assert.ok(select); select.value="1"; await select.fire("change");
+    assert.equal(h.el("filter-count-attention").textContent,"0");
+    assert.equal(h.el("filter-count-found").textContent,"2");
+    assert.equal(h.el("filter-count-selected").textContent,"2");
+    assert.equal(h.el("result-filter-empty").hidden,false);
+    assert.equal(h.el("rows").children[0].children.length,0);
+    assert.equal(h.el("copy").disabled,false);
+    assert.match(h.el("summary-selection").textContent,/저장 예정 2개/);
+    await h.el("filter-selected").fire("click");
+    assert.equal(h.el("rows").children[0].children.length,2);
+  } finally { h.restore(); }
+});
+
+test("selected filter deselection removes only that row; visible select-all does not change unresolved rows",async()=>{
+  const h=await setup();
+  try{
+    await searchInput(h.el,[inputFile("source/a.JPG"),inputFile("source/b.JPG")],"a\nb\nmissing");
+    await h.el("filter-selected").fire("click");
+    const checkbox=h.el("rows").children[0].children[0].children[0].children[0];
+    checkbox.checked=false;await checkbox.fire("change");
+    assert.equal(h.el("filter-count-selected").textContent,"1");
+    assert.equal(h.el("rows").children[0].children.length,1);
+    h.el("select-all").checked=false;await h.el("select-all").fire("change");
+    assert.equal(h.el("result-filter-empty").hidden,false);
+    assert.equal(h.el("copy").disabled,true);
+    await h.el("filter-all").fire("click");
+    assert.equal(h.el("filter-count-missing").textContent,"1");
+    h.el("select-all").checked=true;await h.el("select-all").fire("change");
+    assert.equal(h.el("filter-count-selected").textContent,"2");
+    assert.equal(h.el("rows").children[0].children[2].children[0].children[0].disabled,true);
+    await h.el("filter-selected").fire("click");
+    h.el("items").value="a";await h.el("items").fire("input");
+    assert.equal(h.el("result-filters").hidden,true);
+    assert.equal(h.el("filter-all").attributes["aria-pressed"],"true");
+  }finally{h.restore();}
+});
+test("result dropdown closes after selection, outside pointer, Escape and reset",async()=>{
+  const h=await setup();
+  try {
+    await searchInput(h.el,[inputFile("source/a.JPG")],"a\nmissing");
+    const menu=h.el("result-filter-dropdown");
+    menu.open=true;await h.el("filter-missing").fire("click");assert.equal(menu.open,false);
+    assert.equal(h.el("result-filter-label").textContent,"찾지 못함");
+    menu.open=true;h.documentHandlers.get("pointerdown")({target:new Element()});assert.equal(menu.open,false);
+    menu.open=true;menu.handlers.get("keydown")({key:"Escape"});assert.equal(menu.open,false);
+    menu.open=true;await h.el("filter-missing").fire("click");assert.equal(menu.open,false);
+    menu.open=true;await h.el("reset").fire("click");assert.equal(menu.open,false);
+    assert.equal(h.el("result-filters").hidden,true);
+  }finally{h.restore();}
+});
+test("result dropdown cannot open while a file operation is busy",async()=>{
+  let h;
+  h=await setup({},()=>{
+    assert.equal(h.el("result-filter-toggle").attributes["aria-disabled"],"true");
+    assert.equal(h.el("result-filter-dropdown").open,false);
+    let prevented=false;
+    h.el("result-filter-toggle").handlers.get("click")({preventDefault(){prevented=true;}});
+    assert.equal(prevented,true);
+  });
+  try{
+    await searchInput(h.el,[inputFile("source/a.JPG")],"a");
+    h.el("result-filter-dropdown").open=true;
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length,1);
+    assert.equal(h.el("result-filter-toggle").attributes["aria-disabled"],"false");
+  }finally{h.restore();}
+});
+
+test("result filters are disabled and ignore clicks while download work runs",async()=>{
+  let h;
+  h=await setup({},()=>{
+    assert.equal(h.el("filter-missing").disabled,true);
+    h.el("filter-missing").fire("click");
+    assert.equal(h.el("filter-all").attributes["aria-pressed"],"true");
+  });
+  try{
+    await searchInput(h.el,[inputFile("source/a.JPG")],"a\nmissing");
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length,1);
+    assert.equal(h.el("filter-missing").disabled,false);
+  }finally{h.restore();}
+});
 let scenario = 0;
 async function setup(window = {}, onDownload = () => {}) {
   const keys = [

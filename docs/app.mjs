@@ -5,7 +5,7 @@ import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=raw-compat-1";
+} from "./save-policy.mjs?v=result-filter-1";
 import { createAnalytics } from "./analytics.mjs";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -31,6 +31,7 @@ import {
   expandPhotoPairs,
 } from "./photo-pairs.mjs?v=selected-formats-1";
 import { prepareZipDownload } from "./zip-download.mjs?v=quota-cleanup-1";
+import { RESULT_FILTERS, matchesResultFilter, resultFilterCounts } from "./result-filter.mjs?v=result-filter-1";
 const $ = (id) => document.getElementById(id);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
 const operationLogger = createOperationLogger({
@@ -67,6 +68,7 @@ const defaultDestinationLabel = canChooseDestination
 const state = {
   files: [],
   rows: [],
+  resultFilter: "all",
   pairs: new Map(),
   extensions: new Set(),
   source: null,
@@ -121,6 +123,7 @@ function setBusy(value) {
 }
 function invalidate() {
   state.rows = [];
+  state.resultFilter = "all";
   render();
   $("input-count").textContent =
     `${parseItems($("items").value).length}개 항목`;
@@ -139,13 +142,37 @@ function outputFiles() {
   const files = selectedFiles(state.rows);
   return expandPhotoPairs(files, state.pairs);
 }
+function visibleRows() {
+  return state.rows.filter(row => matchesResultFilter(row, state.resultFilter));
+}
+function updateResultFilters() {
+  const counts = resultFilterCounts(state.rows);
+  const shown = visibleRows();
+  $("result-filters").hidden = !state.rows.length;
+  $("result-filter-status").hidden = !state.rows.length;
+  const labels = { all: "전체", found: "찾음", attention: "확인 필요", missing: "찾지 못함", selected: "선택한 항목" };
+  $("result-filter-label").textContent = labels[state.resultFilter];
+  $("result-filter-toggle").setAttribute("aria-disabled", String(state.busy));
+  $("result-filter-toggle").tabIndex = state.busy ? -1 : 0;
+  if (state.busy || !state.rows.length) $("result-filter-dropdown").open = false;
+  for (const key of RESULT_FILTERS) {
+    $("filter-count-" + key).textContent = counts[key].toLocaleString("ko-KR");
+    $("filter-" + key).setAttribute("aria-label", `${labels[key]} ${counts[key].toLocaleString("ko-KR")}`);
+    $("filter-" + key).setAttribute("aria-pressed", String(state.resultFilter === key));
+    $("filter-" + key).disabled = state.busy;
+  }
+  const hiddenSelected = state.rows.filter(row => row.chosen && row.selected && !matchesResultFilter(row, state.resultFilter)).length;
+  $("result-filter-status").textContent =
+    `요청 ${state.rows.length}건 중 ${shown.length}건 표시 · ${hiddenSelected ? `필터 밖 선택 ${hiddenSelected}건도 저장에 포함` : "필터는 표시만 변경합니다"}`;
+  $("result-filter-empty").hidden = !state.rows.length || shown.length > 0;
+  return shown;
+}
 function updateSummary() {
   refreshSaveOptions();
   const selected = outputFiles(),
     resolved = state.rows.filter((row) => row.chosen).length;
   $("stat-total").textContent = state.rows.length;
   $("stat-found").textContent = resolved;
-  $("stat-attention").textContent = state.rows.length - resolved;
   $("selected-count").textContent = `선택한 파일 ${selected.length}개`;
   const totalBytes = selected.reduce((sum, entry) => sum + entry.file.size, 0);
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -177,6 +204,7 @@ function updateSummary() {
   const attention = state.rows.filter(
     (row) => !row.chosen && row.candidates.length,
   ).length;
+  $("stat-attention").textContent = attention;
   $("summary-requests").textContent =
     `찾지 못함 ${missing.toLocaleString("ko-KR")}건 · 확인 필요 ${attention.toLocaleString("ko-KR")}건`;
   $("copy").disabled = state.busy || !selected.length;
@@ -186,7 +214,9 @@ function updateSummary() {
       ? "ZIP 다운로드 (최대 약 4GB) ↓"
       : "ZIP 다운로드 (최대 512MB) ↓";
   $("copy").textContent = state.dest ? "선택 파일 복사" : "선택 파일 다운로드";
-  const available = state.rows.filter((row) => row.chosen);
+  const available = updateResultFilters().filter((row) => row.chosen);
+  $("select-all").disabled = state.busy || !available.length;
+  $("select-all").setAttribute("aria-label", "현재 표시된 찾은 항목 전체 선택");
   $("select-all").checked =
     available.length > 0 && available.every((row) => row.selected);
   $("select-all").indeterminate =
@@ -206,7 +236,7 @@ function render() {
   $("result-table").hidden = !state.rows.length;
   $("result-label").textContent = state.rows.length ? "검색 완료" : "준비 중";
   const fragment = document.createDocumentFragment();
-  state.rows.forEach((row) => {
+  visibleRows().forEach((row) => {
     const tr = node("tr"),
       checkCell = node("td"),
       content = node("td"),
@@ -219,7 +249,8 @@ function render() {
     checkbox.setAttribute("aria-label", `${row.item} 선택`);
     checkbox.addEventListener("change", () => {
       row.selected = checkbox.checked;
-      updateSummary();
+      if (state.resultFilter === "selected") render();
+      else updateSummary();
     });
     checkCell.append(checkbox);
     content.className = "result-file-cell";
@@ -451,6 +482,7 @@ $("search").addEventListener("click", async () => {
       }
     }
     state.rows = rows;
+    state.resultFilter = "all";
     render();
     const missing = rows.filter((row) => !row.candidates.length).length,
       ambiguous = rows.filter(
@@ -472,9 +504,34 @@ $("search").addEventListener("click", async () => {
   }
 });
 $("select-all").addEventListener("change", () => {
-  for (const row of state.rows)
+  if (state.busy) return;
+  for (const row of visibleRows())
     if (row.chosen) row.selected = $("select-all").checked;
   render();
+});
+for (const key of RESULT_FILTERS) {
+  $("filter-" + key).addEventListener("click", () => {
+    if (state.busy) return;
+    $("result-filter-dropdown").open = false;
+    $("result-filter-toggle").focus?.();
+    if (state.resultFilter === key) return;
+    state.resultFilter = key;
+    const scroll = document.querySelector?.(".result-scroll");
+    if (scroll) scroll.scrollTop = 0;
+    render();
+  });
+}
+$("result-filter-toggle").addEventListener("click", event => {
+  if (state.busy) event.preventDefault();
+});
+document.addEventListener("pointerdown", event => {
+  if (!$("result-filters").contains(event.target)) $("result-filter-dropdown").open = false;
+});
+$("result-filter-dropdown").addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    $("result-filter-dropdown").open = false;
+    $("result-filter-toggle").focus?.();
+  }
 });
 $("destination").addEventListener("click", async () => {
   if (!window.showDirectoryPicker) {

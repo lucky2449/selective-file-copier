@@ -358,6 +358,71 @@ select {
   flex-direction: column;
   flex: 1;
 }
+/* The menu overlays results, so opening it does not resize the list. */
+.results-heading { gap: 12px; flex-wrap: wrap; }
+.results-title { display: flex; align-items: center; gap: 10px; }
+.result-filter-control { position: relative; margin-left: auto; }
+.result-filter-control summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #454b54;
+  border-radius: 7px;
+  background: #1d2127;
+  color: #c5ced9;
+  font-size: 11px;
+  cursor: pointer;
+  list-style: none;
+}
+.result-filter-control summary::-webkit-details-marker { display: none; }
+.result-filter-control summary[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.result-filter-control details[open] > summary { background: #242931; }
+.result-filter-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 205px;
+  max-width: calc(100vw - 48px);
+  padding: 5px;
+  border: 1px solid #3c434d;
+  border-radius: 8px;
+  background: #181c22;
+  box-shadow: 0 10px 28px #0009;
+}
+.result-filter-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #c2ccda;
+  font-size: 12px;
+  text-align: left;
+}
+.result-filter-menu button::before { content: ""; width: 14px; flex: 0 0 14px; }
+.result-filter-menu button:hover { background: #292f38; }
+.result-filter-menu button[aria-pressed="true"] { background: #303741; color: #f0f2f5; }
+.result-filter-menu button[aria-pressed="true"]::before { content: "✓"; color: #cbd4df; }
+.result-filter-menu button span { margin-left: auto; font-variant-numeric: tabular-nums; }
+.result-filter-status {
+  flex: 0 0 auto;
+  margin: 7px 0 0;
+  color: #a6aeb9;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.result-filter-status ~ .table-wrap { margin-top: 8px; }
+.result-filter-empty {
+  padding: 32px 12px;
+  color: #a6aeb9;
+  text-align: center;
+  font-size: 12px;
+}
 .result-scroll {
   flex: 1;
   min-height: 0;
@@ -565,6 +630,28 @@ footer {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+}
+@media (min-width: 851px) {
+  .preparation {
+    display: flex;
+    flex-direction: column;
+  }
+  .preparation-fields {
+    display: flow-root;
+    flex-shrink: 0;
+    margin-bottom: 18px;
+  }
+  .preparation .full {
+    margin-top: auto;
+  }
+  /* Grow the result viewport to keep both action rows at the panel bottom. */
+  .results > .table-wrap {
+    max-height: none;
+    flex-basis: 0;
+  }
+  .results > .save {
+    flex-shrink: 0;
+  }
 }
 @media (max-width: 850px) {
   .workspace {
