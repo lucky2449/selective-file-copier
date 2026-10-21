@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>데이터 전송 안내 · 파일모아</title>
+    <link rel="stylesheet" href="./style.css">
+    <style>
+      .notice-page { max-width: 960px; margin: 40px auto; padding: 24px; line-height: 1.8; }
+      .notice-page h1 { font-size: clamp(24px, 5vw, 36px); }
+      .notice-page h2 { margin-top: 32px; font-size: 20px; }
+      .notice-summary { padding: 16px; border: 1px solid #48515c; border-radius: 10px; }
+      .notice-table { overflow-x: auto; }
+      .notice-page table { width: 100%; min-width: 640px; border-collapse: collapse; }
+      .notice-page th, .notice-page td { padding: 12px; border-bottom: 1px solid #35404b; text-align: left; white-space: normal; vertical-align: top; }
+      .notice-page caption { text-align: left; margin-bottom: 12px; }
+      .notice-page a { overflow-wrap: anywhere; }
+    </style>
+  </head>
+  <body>
+    <main class="notice-page">
+      <a href="./">← 파일모아로 돌아가기</a>
+      <h1>GA4·Cloudflare 데이터 전송 안내</h1>
+      <p>기준일: 2026년 10월 21일 · 운영자: 파일모아 운영자 · 문의: <a href="mailto:sjm2449@naver.com">sjm2449@naver.com</a></p>
+      <p class="notice-summary"><strong>파일 내용·파일명·폴더 경로·찾을 목록은 서버로 전송하지 않습니다.</strong><br>
+        다만 공개 사이트에 접속하면 GA4 방문 통계와 Cloudflare 기반 운영자 서버의 접속·작업 기록 전송이 시작됩니다.</p>
+
+      <h2>어떤 정보를 어디로 보내나요?</h2>
+      <div class="notice-table" role="region" aria-label="외부 전송 항목" tabindex="0">
+        <table>
+          <caption>현재 앱 코드가 전송하는 정보와 이용 목적</caption>
+          <thead><tr><th scope="col">받는 곳</th><th scope="col">전송 정보</th><th scope="col">목적·전송 시점</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Google LLC<br>Google Analytics 4</th><td>쿠키·온라인 식별자, 기기·브라우저 및 방문 정보, 검색·복사·일반 다운로드·ZIP 사용 이벤트, 복사 성공·실패 파일 수. 앱이 전달하는 페이지 주소는 고정값이며 URL 검색어·외부 유입 경로는 넣지 않습니다.</td><td>방문·기능 사용 현황 분석과 서비스 개선. 접속 시 통계를 시작하고 해당 기능 사용 시 이벤트를 보냅니다. 복사 수량은 파일마다가 아니라 작업 종료 시 요약합니다.</td></tr>
+            <tr><th scope="row">Cloudflare, Inc.<br>기반 운영자 작업 로그 서버</th><td>임시 접속·작업 ID, 저장 방식, 시작·종료·실패·취소·다운로드 요청 결과, 선택·처리 파일 수와 합계 용량, 소요 시간, 고정 오류 종류·발생 단계·횟수, 앱·배포 버전, 브라우저 종류·주요 버전, 클라이언트 시각. 서버는 수신 시각·기록 ID·해시·서명을 추가합니다.</td><td>오류 조사, 운영 점검과 분쟁 사실관계 확인을 위한 보조 자료. 접속 시와 복사·다운로드·ZIP 작업 시작 및 종료 시 HTTPS로 전송합니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>원시 오류 메시지·스택과 전체 User-Agent는 작업 로그 JSON에 포함하지 않으며, 앱의 작업 로그 DB에 IP 주소를 저장하지 않습니다.
+        다만 Google·Cloudflare는 요청 처리·보안 등의 과정에서 IP 주소 등 통신 정보를 별도로 처리할 수 있습니다.
+        임시 ID나 쿠키를 사용하므로 이 기록을 완전한 익명 정보라고 설명하지 않습니다.</p>
+
+      <h2>공급자 공식 안내</h2>
+      <ul>
+        <li><a href="https://policies.google.com/privacy/partners?hl=ko" target="_blank" rel="noopener noreferrer">Google 정보 처리 안내</a> · <a href="https://business.safety.google/adsprocessorterms/" target="_blank" rel="noopener noreferrer">Google 데이터 처리 약관</a></li>
+        <li><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare 개인정보 정책</a> · <a href="https://developers.cloudflare.com/d1/configuration/data-location/" target="_blank" rel="noopener noreferrer">D1 데이터 위치</a></li>
+        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub 개인정보 정책</a></li>
+      </ul>
+    </main>
+  </body>
+</html>
