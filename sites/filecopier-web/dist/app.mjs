@@ -1,12 +1,13 @@
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=raw-compat-1";
-import { createOperationLogger } from "./operation-log.mjs?v=operation-log-1";
+import { createOperationLogger } from "./operation-log.mjs?v=privacy-consent-1";
+import { createPrivacyPreferences } from "./privacy-preferences.mjs?v=privacy-consent-1";
 import { operationLogConfig } from "./operation-log-config.mjs?v=quota-cleanup-1";
 import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=result-filter-1";
-import { createAnalytics } from "./analytics.mjs";
+} from "./save-policy.mjs?v=privacy-consent-1";
+import { createAnalytics } from "./analytics.mjs?v=privacy-consent-1";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
 import { openCopyWriter } from "./copy-safety.mjs?v=source-protection-2";
@@ -40,14 +41,13 @@ const operationLogger = createOperationLogger({
   appVersion: APP_VERSION,
 });
 const confirmSave = createSaveNotice(window, {
-  operationLogsEnabled: operationLogger.enabled,
+  operationLogsEnabled: () => operationLogger.enabled,
   retentionDays: operationLogConfig.retentionDays,
 });
-if (operationLogger.enabled) {
+if (operationLogger.configured) {
   $("operation-log-notice").hidden = false;
   $("operation-log-retention").textContent =
     `${operationLogConfig.retentionDays}일`;
-  operationLogger.visit();
 }
 function sizeMismatch(message) {
   return Object.assign(new Error(message), { code: "SIZE_MISMATCH" });
@@ -60,7 +60,13 @@ function operationSize(files) {
 }
 const analytics = createAnalytics({ measurementId, window, document });
 if (analytics.configured) $("analytics-notice").hidden = false;
-analytics.start();
+function applyPrivacyPreferences(value) {
+  analytics.setConsent(value.analytics);
+  if (value.analytics) analytics.start();
+  const wasEnabled = operationLogger.enabled;
+  operationLogger.setConsent(value.operationLogs);
+  if (!wasEnabled && operationLogger.enabled) operationLogger.visit();
+}
 const canChooseDestination = typeof window.showDirectoryPicker === "function";
 const defaultDestinationLabel = canChooseDestination
   ? "저장 폴더 선택 (선택 사항)"
@@ -943,3 +949,4 @@ $("diagnostics").addEventListener("click", () =>
     "filemoa-diagnostics.json",
   ),
 );
+createPrivacyPreferences({ window, document, onChange: applyPrivacyPreferences });

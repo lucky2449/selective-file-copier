@@ -41,6 +41,16 @@ test("diagnostics whitelist excludes paths, raw errors, full UA and caps history
   assert.doesNotMatch(raw, /private|secret-user|Chrome\//);
 });
 
+test("save warning follows permission changes during the current page session", () => {
+  let enabled = false, message = "";
+  const ask = createSaveNotice({ confirm(text) { message = text; return true; } }, { operationLogsEnabled: () => enabled });
+  ask(); assert.doesNotMatch(message, /Cloudflare/);
+  enabled = true;
+  ask(); assert.match(message, /허용한.*Cloudflare/);
+  enabled = false;
+  ask(); assert.doesNotMatch(message, /Cloudflare/);
+});
+
 test("updated save notice reappears after legacy acceptance and describes enabled server collection", () => {
   let stored = "1",
     message = "",
@@ -62,7 +72,7 @@ test("updated save notice reappears after legacy acceptance and describes enable
   });
   assert.equal(ask(), true);
   assert.equal(calls, 1);
-  assert.match(message, /接続|접속 시부터/);
+  assert.match(message, /허용한/);
   assert.match(message, /Cloudflare/);
   assert.match(message, /90일/);
   assert.match(

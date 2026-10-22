@@ -19,6 +19,7 @@ function fixture(measurementId = ID, origin = "https://lucky2449.github.io") {
     head: { append: (script) => scripts.push(script) },
   };
   const analytics = createAnalytics({ measurementId, window, document });
+  analytics.setConsent(true);
   return {
     analytics,
     window,
@@ -167,4 +168,37 @@ test("copy summaries accept only positive safe integer counts", () => {
   assert.equal(summary.length, 2);
   assert.equal(summary[0][2].copied_file_count, 1000);
   assert.equal(summary[1][2].failed_file_count, 3);
+});
+
+test("unanswered and revoked analytics never load or queue events; regrant does not duplicate scripts", () => {
+  const h = fixture();
+  h.analytics.setConsent(false);
+  h.analytics.start();
+  h.analytics.track("file_search");
+  assert.equal(h.scripts.length, 0);
+  assert.deepEqual(h.commands(), []);
+  assert.equal(h.window[`ga-disable-${ID}`], true);
+  h.analytics.setConsent(true);
+  h.analytics.start();
+  assert.equal(h.scripts.length, 1);
+  const before = h.commands().length;
+  h.analytics.setConsent(false);
+  h.analytics.track("file_search");
+  h.analytics.recordCopyResult(1000, 1);
+  assert.equal(h.window[`ga-disable-${ID}`], true);
+  assert.equal(h.commands().length, before);
+  h.analytics.setConsent(true);
+  h.analytics.start();
+  h.analytics.track("file_search");
+  assert.equal(h.scripts.length, 1);
+  assert.equal(h.commands().filter(([, name]) => name === "page_view").length, 1);
+  assert.equal(h.commands().filter(([, name]) => name === "file_search").length, 1);
+});
+test("a raw analytics instance fails closed by default", () => {
+  const h = fixture();
+  const analytics = createAnalytics({ measurementId: ID, window: h.window, document: h.document });
+  analytics.start();
+  analytics.track("file_search");
+  assert.equal(h.scripts.length, 0);
+  assert.deepEqual(h.commands(), []);
 });

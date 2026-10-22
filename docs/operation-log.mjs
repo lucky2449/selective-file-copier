@@ -50,23 +50,39 @@ export function createOperationLogger({
     )
       endpoint = url.href;
   } catch {}
-  const enabled = Boolean(endpoint);
+  const configured = Boolean(endpoint);
+  let consent = false;
+  let generation = 0;
+  const controllers = new Set();
   let sessionId;
   const browser = browserInfo(window.navigator?.userAgent);
   let pending = 0;
   // No persistent queue: never retain a user's work history on disk.
-  function send(value) {
-    if (!enabled || pending >= 8) return;
+  function send(value, operationGeneration) {
+    if (
+      !configured ||
+      !consent ||
+      operationGeneration !== generation ||
+      pending >= 8
+    )
+      return;
     try {
       validateOperation(value);
       const body = JSON.stringify(value);
       if (new TextEncoder().encode(body).length > 4096) return;
       const controller = new AbortController();
+      controllers.add(controller);
       const timer = setTimeout(() => controller.abort(), 5000);
       pending++;
       Promise.resolve()
-        .then(() =>
-          window.fetch(endpoint, {
+        .then(() => {
+          if (
+            !consent ||
+            operationGeneration !== generation ||
+            controller.signal.aborted
+          )
+            return;
+          return window.fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body,
@@ -74,16 +90,19 @@ export function createOperationLogger({
             referrerPolicy: "no-referrer",
             keepalive: true,
             signal: controller.signal,
-          }),
-        )
+          });
+        })
         .catch(() => {})
         .finally(() => {
           pending--;
+          controllers.delete(controller);
           clearTimeout(timer);
         });
     } catch {}
   }
   function begin(mode, { selectedCount = 0, selectedBytes = 0 } = {}) {
+    if (!configured || !consent) return { error() {}, finish() {} };
+    const operationGeneration = generation;
     let operationId;
     try {
       sessionId ||= window.crypto.randomUUID();
@@ -110,19 +129,23 @@ export function createOperationLogger({
       unprocessed: selectedCount,
     };
     if (mode !== "visit")
-      send({
-        ...base,
-        sequence: 1,
-        clientTime: new Date(start).toISOString(),
-        stage: "started",
-        result: "started",
-        durationMs: 0,
-        files: zero,
-        bytes: { selected: selectedBytes, written: 0, prepared: 0 },
-        errors: [],
-      });
+      send(
+        {
+          ...base,
+          sequence: 1,
+          clientTime: new Date(start).toISOString(),
+          stage: "started",
+          result: "started",
+          durationMs: 0,
+          files: zero,
+          bytes: { selected: selectedBytes, written: 0, prepared: 0 },
+          errors: [],
+        },
+        operationGeneration,
+      );
     return {
       error(error, phase) {
+        if (!consent || operationGeneration !== generation) return;
         if (error?.name === "AbortError" || !PHASES.has(phase)) return;
         const code = classifyOperationError(error, phase),
           key = code + ":" + phase;
@@ -139,35 +162,51 @@ export function createOperationLogger({
         writtenBytes = 0,
         preparedBytes = 0,
       } = {}) {
-        if (finished) return;
+        if (finished || !consent || operationGeneration !== generation) return;
         finished = true;
-        send({
-          ...base,
-          sequence: 2,
-          clientTime: new Date(now()).toISOString(),
-          stage: "finished",
-          result,
-          durationMs: Math.max(0, now() - start),
-          files: {
-            ...zero,
-            succeeded,
-            requested,
-            archived,
-            failed,
-            unprocessed: selectedCount - succeeded - requested - failed,
+        send(
+          {
+            ...base,
+            sequence: 2,
+            clientTime: new Date(now()).toISOString(),
+            stage: "finished",
+            result,
+            durationMs: Math.max(0, now() - start),
+            files: {
+              ...zero,
+              succeeded,
+              requested,
+              archived,
+              failed,
+              unprocessed: selectedCount - succeeded - requested - failed,
+            },
+            bytes: {
+              selected: selectedBytes,
+              written: writtenBytes,
+              prepared: preparedBytes,
+            },
+            errors: [...errors.values()],
           },
-          bytes: {
-            selected: selectedBytes,
-            written: writtenBytes,
-            prepared: preparedBytes,
-          },
-          errors: [...errors.values()],
-        });
+          operationGeneration,
+        );
       },
     };
   }
   return {
-    enabled,
+    configured,
+    get enabled() {
+      return configured && consent;
+    },
+    setConsent(value) {
+      const next = value === true;
+      if (next === consent) return;
+      consent = next;
+      generation++;
+      if (!consent) {
+        sessionId = undefined;
+        for (const controller of controllers) controller.abort();
+      }
+    },
     begin,
     visit() {
       const op = begin("visit");

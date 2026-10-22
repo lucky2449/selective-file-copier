@@ -12,6 +12,7 @@ const EVENTS = new Set([
 
 export function createAnalytics({ measurementId = "", window, document }) {
   let active = false;
+  let consent = false;
   let started = false;
   let visited = false;
   const configured =
@@ -25,10 +26,20 @@ export function createAnalytics({ measurementId = "", window, document }) {
   const gtag = function () {
     window.dataLayer.push(arguments);
   };
+  if (configured) window[`ga-disable-${measurementId}`] = true;
   return {
     configured,
+    setConsent(value) {
+      consent = value === true;
+      if (configured) window[`ga-disable-${measurementId}`] = !consent;
+      if (!consent) active = false;
+    },
     start() {
-      if (!configured || started) return;
+      if (!configured || !consent || active) return;
+      if (started) {
+        active = true;
+        return;
+      }
       started = true;
       try {
         window.dataLayer = window.dataLayer || [];
@@ -53,12 +64,14 @@ export function createAnalytics({ measurementId = "", window, document }) {
           "https://www.googletagmanager.com/gtag/js?id=" + measurementId;
         script.onerror = () => {
           active = false;
+          started = false;
         };
         document.head.append(script);
         active = true;
         this.track("page_view");
       } catch {
         active = false; // Analytics must never block searching or copying.
+        started = false;
       }
     },
     recordCopyResult(success, failed) {
@@ -66,7 +79,7 @@ export function createAnalytics({ measurementId = "", window, document }) {
       this.track("copy_failure", failed);
     },
     track(event, count) {
-      if (!active || !EVENTS.has(event)) return;
+      if (!active || !consent || !EVENTS.has(event)) return;
       if (event === "page_view" && visited) return;
       const counts = {};
       if (event === "copy_success" || event === "copy_failure") {

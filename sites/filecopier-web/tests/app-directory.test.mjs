@@ -40,6 +40,52 @@ class Element {
   }
 }
 
+test("public app sends nothing until separate privacy choices are saved", async () => {
+  const sent = [], values = new Map();
+  const win = {
+    location: { origin: "https://lucky2449.github.io" }, crypto,
+    localStorage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) },
+    fetch: async (url, options) => { sent.push(JSON.parse(options.body)); return new Response(null, { status: 201 }); },
+  };
+  const h = await setup(win);
+  try {
+    assert.equal(h.el("privacy-dialog").open, true);
+    assert.equal(globalThis.document.head.children.length, 0);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(sent.length, 0);
+    h.el("privacy-operation-logs").checked = true;
+    await h.el("privacy-allow").fire("click");
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].result, "visited");
+    assert.equal(globalThis.document.head.children.length, 0);
+    await h.el("privacy-settings").fire("click");
+    await h.el("privacy-reject").fire("click");
+    await searchInput(h.el, [inputFile("source/one.JPG")], "one");
+    await h.el("copy").fire("click");
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(sent.length, 1);
+    assert.deepEqual(h.downloads.map(file => file.name), ["one.JPG"]);
+  } finally { h.restore(); }
+});
+
+test("public app restores a saved refusal without showing privacy dialog or loading GA4", async () => {
+  const win = {
+    location: { origin: "https://lucky2449.github.io" },
+    localStorage: { getItem: key => key === "filemoa-privacy-preferences" ? JSON.stringify({ schemaVersion: 1, noticeVersion: "old", updatedAt: "2020-01-01T00:00:00Z", analytics: false, operationLogs: false }) : null },
+    fetch: () => assert.fail("Refused logs must not be sent"),
+  };
+  const h = await setup(win);
+  try {
+    assert.equal(h.el("privacy-dialog").open, undefined);
+    assert.equal(globalThis.document.head.children.length, 0);
+    assert.equal(win[`ga-disable-G-H7FQ3VZPMB`], true);
+    await searchInput(h.el, [inputFile("source/one.JPG")], "one");
+    await h.el("copy").fire("click");
+    assert.equal(h.downloads.length, 1);
+  } finally { h.restore(); }
+});
+
 test("result dropdown preserves hidden selections and downloads include all selected rows", async () => {
   const h = await setup();
   try {
@@ -178,15 +224,15 @@ async function setup(window = {}, onDownload = () => {}) {
     return elements.get(id);
   };
   let nextUrl = 0;
-  globalThis.URL = {
-    createObjectURL(blob) {
+  globalThis.URL = class extends previous.URL {
+    static createObjectURL(blob) {
       const url = `blob:test-${nextUrl++}`;
       blobs.set(url, blob);
       return url;
-    },
-    revokeObjectURL(url) {
+    }
+    static revokeObjectURL(url) {
       revoked.push(url);
-    },
+    }
   };
   const documentHandlers = new Map();
   globalThis.document = {
@@ -747,7 +793,16 @@ for (const scenario of [
   test(`copy analytics reports one operation with actual file counts: ${scenario}`, async () => {
     let h,
       commits = 0;
-    const win = { location: { origin: "https://lucky2449.github.io" } };
+    const win = {
+      location: { origin: "https://lucky2449.github.io" },
+      localStorage: {
+        getItem(key) {
+          if (key !== "filemoa-privacy-preferences") return null;
+          return JSON.stringify({ schemaVersion: 1, noticeVersion: "2026-10-22-1", updatedAt: "2026-10-22T00:00:00.000Z", analytics: true, operationLogs: false });
+        },
+        setItem() {},
+      },
+    };
     const parent = {
       kind: "directory",
       name: "output",

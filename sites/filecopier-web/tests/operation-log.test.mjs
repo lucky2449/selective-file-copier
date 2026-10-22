@@ -61,6 +61,7 @@ function clientFixture(overrides = {}) {
     appVersion: "2026.10.19-logs-8",
     now: () => now,
   });
+  logger.setConsent(true);
   return { logger, sent, window, advance: () => (now += 1000) };
 }
 test("client sends start and one finish with matching IDs and no private error text", async () => {
@@ -140,6 +141,7 @@ for (const variant of ["disabled", "wrong-origin", "unsafe-endpoint"]) {
       config: { endpoint, buildId: "bc2d587" },
       appVersion: "2026.10.19-logs-8",
     });
+    logger.setConsent(true);
     logger.visit();
     logger
       .begin("copy", { selectedCount: 1, selectedBytes: 4 })
@@ -190,6 +192,48 @@ test("error classification uses fixed codes and excludes unknown raw messages", 
     classifyOperationError({ code: "SIZE_MISMATCH" }, "read"),
     "SIZE_MISMATCH",
   );
+});
+
+test("logger defaults off and does not replay operations begun without permission", async () => {
+  const f = clientFixture();
+  const logger = createOperationLogger({ window: f.window, config: { endpoint: "https://collector.example/v1/operations", buildId: "bc2d587" }, appVersion: "2026.10.22-privacy-19" });
+  assert.equal(logger.enabled, false);
+  const old = logger.begin("copy", { selectedCount: 1, selectedBytes: 4 });
+  logger.visit();
+  await flush();
+  assert.equal(f.sent.length, 0);
+  logger.setConsent(true);
+  old.finish({ result: "success", succeeded: 1, writtenBytes: 4 });
+  await flush();
+  assert.equal(f.sent.length, 0);
+  logger.visit();
+  await flush();
+  assert.equal(f.sent.length, 1);
+});
+test("withdrawal before a queued request prevents fetch and invalidates unfinished operations", async () => {
+  const f = clientFixture();
+  const old = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 4 });
+  f.logger.setConsent(false);
+  await flush();
+  assert.equal(f.sent.length, 0);
+  f.logger.setConsent(true);
+  old.finish({ result: "success", succeeded: 1, writtenBytes: 4 });
+  await flush();
+  assert.equal(f.sent.length, 0);
+  f.logger.visit();
+  await flush();
+  assert.equal(f.sent.length, 1);
+});
+test("withdrawal aborts in-flight log requests without cancelling file operations", async () => {
+  let signal;
+  const f = clientFixture({ fetch(url, opts) { signal = opts.signal; return new Promise((resolve, reject) => { opts.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))); }); } });
+  const op = f.logger.begin("copy", { selectedCount: 1, selectedBytes: 4 });
+  await flush();
+  assert.equal(signal.aborted, false);
+  f.logger.setConsent(false);
+  assert.equal(signal.aborted, true);
+  assert.doesNotThrow(() => op.finish({ result: "success", succeeded: 1, writtenBytes: 4 }));
+  await flush();
 });
 for (const field of ["filename", "path", "message", "ip"]) {
   test(`schema rejects unapproved top-level ${field}`, () => {
