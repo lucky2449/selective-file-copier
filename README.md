@@ -125,7 +125,7 @@ ZIP은 **무압축**으로 생성합니다. 브라우저 전용 임시 저장소
 
 외부 통계·작업 기록은 공식 GitHub Pages에서 활성화됩니다. 통신 실패가 파일 작업을 중단하지는 않습니다. 일반 다운로드·ZIP의 기록은 실제 저장 완료가 아닌 다운로드 요청을 의미합니다.
 
-메인 화면 맨 아래 **오픈소스 라이선스** 옆의 **GA4·Cloudflare 데이터 전송 안내**에서 실제 전송 항목·목적·시점을 확인할 수 있습니다. [안내 HTML](sites/filecopier-web/dist/data-notice.html)
+메인 화면 맨 아래 **개인정보 처리방침**에서 전송 항목·목적·보관·파기, 외부 서비스와 국외 처리, 쿠키·수집 거부 및 문의 방법을 확인할 수 있습니다. [처리방침 HTML](sites/filecopier-web/dist/data-notice.html)
 
 [통계 설정과 집계 기준](DEVELOPMENT.md#통계-설정-ga4) · [서버 수집 범위·보관·조회](server/operation-logs/README.md)
 

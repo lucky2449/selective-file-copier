@@ -1,51 +1,132 @@
 <!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>데이터 전송 안내 · 파일모아</title>
-    <link rel="stylesheet" href="./style.css">
-    <style>
-      .notice-page { max-width: 960px; margin: 40px auto; padding: 24px; line-height: 1.8; }
-      .notice-page h1 { font-size: clamp(24px, 5vw, 36px); }
-      .notice-page h2 { margin-top: 32px; font-size: 20px; }
-      .notice-summary { padding: 16px; border: 1px solid #48515c; border-radius: 10px; }
-      .notice-table { overflow-x: auto; }
-      .notice-page table { width: 100%; min-width: 640px; border-collapse: collapse; }
-      .notice-page th, .notice-page td { padding: 12px; border-bottom: 1px solid #35404b; text-align: left; white-space: normal; vertical-align: top; }
-      .notice-page caption { text-align: left; margin-bottom: 12px; }
-      .notice-page a { overflow-wrap: anywhere; }
-    </style>
-  </head>
-  <body>
-    <main class="notice-page">
-      <a href="./">← 파일모아로 돌아가기</a>
-      <h1>GA4·Cloudflare 데이터 전송 안내</h1>
-      <p>기준일: 2026년 10월 21일 · 운영자: 파일모아 운영자 · 문의: <a href="mailto:sjm2449@naver.com">sjm2449@naver.com</a></p>
-      <p class="notice-summary"><strong>파일 내용·파일명·폴더 경로·찾을 목록은 서버로 전송하지 않습니다.</strong><br>
-        다만 공개 사이트에 접속하면 GA4 방문 통계와 Cloudflare 기반 운영자 서버의 접속·작업 기록 전송이 시작됩니다.</p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="파일모아의 개인정보 처리 항목, 보관·파기, 외부 서비스와 권리 행사 안내">
+  <meta name="robots" content="noindex">
+  <title>개인정보 처리방침 · 파일모아</title>
+  <link rel="stylesheet" href="./style.css">
+  <style>
+    .notice-page { max-width: 960px; margin: 40px auto; padding: 24px; line-height: 1.85; }
+    .notice-page h1 { font-size: clamp(24px, 5vw, 36px); letter-spacing: -1px; }
+    .notice-page h2 { margin-top: 36px; font-size: 20px; scroll-margin-top: 24px; }
+    .notice-page p, .notice-page li { color: #c2cad5; }
+    .notice-summary { padding: 16px 18px; border: 1px solid #48515c; border-radius: 10px; }
+    .notice-page strong { color: #eef0f4; }
+    .notice-meta { font-size: 12px; }
+    .notice-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 16px 0; border-bottom: 1px solid #35404b; }
+    .notice-table { overflow-x: auto; }
+    .notice-page table { width: 100%; min-width: 640px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+    .notice-page th, .notice-page td { padding: 12px; border-bottom: 1px solid #35404b; text-align: left; white-space: normal; vertical-align: top; }
+    .notice-page th { position: static; font-size: 12px; }
+    .notice-page th:first-child { width: 20%; }
+    .notice-page td:last-child, .notice-page th:last-child { width: 36%; }
+    .notice-page caption { text-align: left; margin-bottom: 12px; font-size: 13px; color: #a6aeb9; }
+    .notice-page a { color: #c9d9ef; overflow-wrap: anywhere; }
+    .notice-page li + li { margin-top: 8px; }
+    .notice-page code { overflow-wrap: anywhere; }
+    .notice-bottom { margin-top: 36px; padding-top: 20px; border-top: 1px solid #35404b; }
+    @media (max-width: 480px) { .notice-page { margin: 16px auto; padding: 20px; } }
+  </style>
+</head>
+<body>
+<main class="notice-page">
+  <a href="./">← 파일모아로 돌아가기</a>
+  <h1>개인정보 처리방침</h1>
+  <p class="notice-meta">작성·수정일: <time datetime="2026-10-22">2026년 10월 22일</time> · 운영·개인정보 문의 담당: 파일모아 운영자 · <a href="mailto:sjm2449@naver.com">sjm2449@naver.com</a></p>
+  <p class="notice-summary"><strong>파일 내용·파일명·폴더 경로·입력 목록은 서버로 전송하지 않습니다.</strong><br>검색·미리보기·복사·ZIP 생성은 이용자의 브라우저에서 처리합니다. 공식 공개 사이트에서는 방문·기능 통계와 접속·작업 기록을 외부 서비스로 전송합니다.</p>
+  <nav class="notice-nav" aria-label="개인정보 처리방침 목차">
+    <a href="#collection">처리 항목·목적</a><a href="#retention">보관·파기</a><a href="#providers">외부 서비스·국외 처리</a><a href="#cookies">쿠키·수집 거부</a><a href="#rights">권리 행사·문의</a><a href="#security">보호 조치</a>
+  </nav>
 
-      <h2>어떤 정보를 어디로 보내나요?</h2>
-      <div class="notice-table" role="region" aria-label="외부 전송 항목" tabindex="0">
-        <table>
-          <caption>현재 앱 코드가 전송하는 정보와 이용 목적</caption>
-          <thead><tr><th scope="col">받는 곳</th><th scope="col">전송 정보</th><th scope="col">목적·전송 시점</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Google LLC<br>Google Analytics 4</th><td>쿠키·온라인 식별자, 기기·브라우저 및 방문 정보, 검색·복사·일반 다운로드·ZIP 사용 이벤트, 복사 성공·실패 파일 수. 앱이 전달하는 페이지 주소는 고정값이며 URL 검색어·외부 유입 경로는 넣지 않습니다.</td><td>방문·기능 사용 현황 분석과 서비스 개선. 접속 시 통계를 시작하고 해당 기능 사용 시 이벤트를 보냅니다. 복사 수량은 파일마다가 아니라 작업 종료 시 요약합니다.</td></tr>
-            <tr><th scope="row">Cloudflare, Inc.<br>기반 운영자 작업 로그 서버</th><td>임시 접속·작업 ID, 저장 방식, 시작·종료·실패·취소·다운로드 요청 결과, 선택·처리 파일 수와 합계 용량, 소요 시간, 고정 오류 종류·발생 단계·횟수, 앱·배포 버전, 브라우저 종류·주요 버전, 클라이언트 시각. 서버는 수신 시각·기록 ID·해시·서명을 추가합니다.</td><td>오류 조사, 운영 점검과 분쟁 사실관계 확인을 위한 보조 자료. 접속 시와 복사·다운로드·ZIP 작업 시작 및 종료 시 HTTPS로 전송합니다.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>원시 오류 메시지·스택과 전체 User-Agent는 작업 로그 JSON에 포함하지 않으며, 앱의 작업 로그 DB에 IP 주소를 저장하지 않습니다.
-        다만 Google·Cloudflare는 요청 처리·보안 등의 과정에서 IP 주소 등 통신 정보를 별도로 처리할 수 있습니다.
-        임시 ID나 쿠키를 사용하므로 이 기록을 완전한 익명 정보라고 설명하지 않습니다.</p>
+  <section aria-labelledby="collection">
+    <h2 id="collection">1. 처리 항목·목적과 수집 시점</h2>
+    <p>공식 사이트 <a href="https://lucky2449.github.io/selective-file-copier/">lucky2449.github.io/selective-file-copier/</a>에서 아래 전송이 활성화됩니다. 현재 로컬 실행 설정(localhost·127.0.0.1·로컬 HTML 파일)에는 앱의 GA4·작업 로그 전송을 활성화하지 않습니다.</p>
+    <div class="notice-table" role="region" aria-label="처리 항목과 이용 목적" tabindex="0">
+      <table>
+        <caption>앱에서 외부 서비스로 전달하는 정보</caption>
+        <thead><tr><th scope="col">구분</th><th scope="col">항목</th><th scope="col">목적·시점</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">GA4 통계</th><td>쿠키·온라인 식별자, 기기·브라우저 및 방문 정보, 검색·복사·일반 다운로드·ZIP 사용 이벤트, 작업별 복사 성공·실패 파일 수. 앱이 전달하는 페이지 주소는 고정값이며 URL 검색어·외부 유입 경로는 넣지 않습니다.</td><td>방문·기능 사용 현황 분석과 서비스 개선. 공개 사이트 접속 시 시작하고 기능 사용 시 이벤트를 전송합니다.</td></tr>
+          <tr><th scope="row">운영자 작업 로그</th><td>임시 접속·작업 ID, 저장 방식, 작업 단계·결과, 선택·처리 파일 수와 합계 용량, 소요 시간, 고정 오류 종류·단계·횟수, 앱·배포 버전, 브라우저 종류·주요 버전, 클라이언트 시각. 서버는 수신 시각·기록 ID·해시·서명을 추가합니다.</td><td>오류 조사, 운영 점검 및 분쟁 사실관계 확인을 위한 보조 자료. 접속 시와 복사·다운로드·ZIP 작업 시작·종료 시 HTTPS로 전송합니다.</td></tr>
+          <tr><th scope="row">이메일 문의</th><td>문의자가 보내는 이메일 주소, 문의 내용과 자발적으로 첨부한 자료</td><td>문의 답변과 권리 행사 요청 확인. 문의 이메일 수신 시 처리합니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>작업 로그 JSON에는 원시 오류 메시지·스택·전체 User-Agent를 넣지 않으며 앱 작업 로그 DB에는 IP 주소 필드가 없습니다. 다만 Google·Cloudflare·호스팅 제공자는 요청 처리·보안 과정에서 IP 주소 등 통신 정보를 별도로 처리할 수 있습니다. 쿠키와 임시 식별자를 사용하므로 완전한 익명 정보라고 설명하지 않습니다.</p>
+    <p><strong>현재 접속 통계·로그는 저장 전 확인창보다 먼저 전송됩니다.</strong> 별도의 수집 동의 화면이나 앱 내 작업 로그 전송 끄기 기능은 아직 제공하지 않습니다. 저장 전 확인창은 파일 작업 주의사항 안내이며 개인정보 수집 동의 절차를 대신하지 않습니다.</p>
+  </section>
 
-      <h2>공급자 공식 안내</h2>
-      <ul>
-        <li><a href="https://policies.google.com/privacy/partners?hl=ko" target="_blank" rel="noopener noreferrer">Google 정보 처리 안내</a> · <a href="https://business.safety.google/adsprocessorterms/" target="_blank" rel="noopener noreferrer">Google 데이터 처리 약관</a></li>
-        <li><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare 개인정보 정책</a> · <a href="https://developers.cloudflare.com/d1/configuration/data-location/" target="_blank" rel="noopener noreferrer">D1 데이터 위치</a></li>
-        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub 개인정보 정책</a></li>
-      </ul>
-    </main>
-  </body>
+  <section aria-labelledby="retention">
+    <h2 id="retention">2. 보관기간과 파기</h2>
+    <ul>
+      <li><strong>GA4:</strong> 운영자가 확인한 사용자·이벤트 데이터 보관 설정은 각각 2개월이며 활동 시 보관기간 재설정은 꺼져 있습니다. 표준 집계 보고서와 브라우저 쿠키의 만료기간은 별개입니다. 실제 삭제는 Google의 처리 절차에 따릅니다.</li>
+      <li><strong>작업 로그:</strong> 서버 수신 후 90일 경과 기록을 매일 예약 작업에서 최대 5,000건씩 DB에서 삭제합니다. 정리 실행 요약은 7일 기준으로 정리합니다. 장애·한도 초과·적체 시 삭제가 지연될 수 있어 운영 점검이 필요합니다.</li>
+      <li><strong>백업·내보내기:</strong> DB의 자동 삭제가 공급자 복구본이나 별도로 내보낸 JSON까지 즉시 삭제하는 것은 아닙니다.</li>
+      <li><strong>문의 이메일:</strong> 문의 응대와 요청 처리에 사용하며 삭제 요청은 아래 이메일로 받습니다.</li>
+      <li><strong>기기 내 정보:</strong> 선택한 사진·검색 목록은 앱 서버에 보관하지 않습니다. 화면의 진단 기록은 페이지 메모리에 유지되고 새로고침 시 초기화됩니다. 이용자가 내려받은 파일·진단 JSON과 브라우저 저장 정보는 이용자가 관리합니다.</li>
+    </ul>
+    <p>법령상 보존 의무나 실제 분쟁으로 별도 보존이 필요한 경우에는 적용 근거·항목·기간을 확인해 필요한 범위로 구분하여 처리합니다. 분쟁 대비를 이유로 모든 기록을 무기한 보관하지 않습니다.</p>
+  </section>
+
+  <section aria-labelledby="providers">
+    <h2 id="providers">3. 외부 서비스와 국외 처리</h2>
+    <p>운영자가 선택한 외부 서비스와 역할은 다음과 같습니다.</p>
+    <div class="notice-table" role="region" aria-label="외부 서비스 및 국외 처리 현황" tabindex="0">
+      <table>
+        <caption>서비스별 처리 현황</caption>
+        <thead><tr><th scope="col">서비스·업체</th><th scope="col">역할·전송 방법</th><th scope="col">처리 국가·보유 조건</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Google Analytics 4<br>Google LLC</th><td>방문·기능 통계 처리. 접속·기능 사용 시 HTTPS 전송. <br><a href="https://policies.google.com/privacy/partners?hl=ko" target="_blank" rel="noopener noreferrer">정보 처리·문의 안내</a></td><td>Google 및 하위 처리업체의 시설 운영 국가에서 처리될 수 있습니다. 사용자·이벤트 보관 설정은 위 2개월이며 그 외 공급자 보유 조건은 별도입니다.</td></tr>
+          <tr><th scope="row">Workers·D1<br>Cloudflare, Inc.</th><td>운영자 로그 수신·보관. 접속·작업 시작·종료 시 HTTPS 전송. <br><a href="https://www.cloudflare.com/policies/privacy/" target="_blank" rel="noopener noreferrer">개인정보·문의 안내</a></td><td>운영사 소재국은 미국입니다. 기존 조회에서 D1 실행 지역은 APAC, 특정 국가 제한은 없음, 읽기 복제 비활성화로 확인했습니다. 이는 특정 저장 국가 보장이 아닙니다.</td></tr>
+          <tr><th scope="row">GitHub Pages<br>GitHub, Inc.</th><td>정적 웹사이트·프로그램 자산 제공. 사이트 접속 시 호스팅 제공자에게 통신·접속 정보가 전달될 수 있습니다. <br><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">호스팅 개인정보 안내</a></td><td>앱 통계·작업 로그와 별개의 호스팅 처리이며 공급자 정책이 적용됩니다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>앱은 사진 내용·파일명·경로·입력 목록을 위 서비스에 전달하지 않습니다. 이메일 문의는 이용자가 선택한 이메일 서비스와 운영자의 수신 메일 서비스에서도 처리될 수 있습니다.</p>
+  </section>
+
+  <section aria-labelledby="cookies">
+    <h2 id="cookies">4. 쿠키·기기 저장 정보와 수집 거부</h2>
+    <ul>
+      <li><strong>GA4 쿠키:</strong> Google은 <code>_ga</code> 등 쿠키로 방문을 구분할 수 있습니다. 공식 문서의 기본 만료기간은 2년이며 실제 만료·갱신은 태그 설정과 브라우저 정책에 따라 달라질 수 있습니다. 2개월 이벤트 보관 설정과 쿠키 수명은 다릅니다.</li>
+      <li><strong>저장 안내 확인 기록:</strong> <code>filemoa-save-notice</code>라는 localStorage 키에 확인한 안내 버전을 저장하여 반복 표시를 줄입니다. 사진 정보나 개인정보 수집 동의 내역을 저장하는 항목은 아닙니다. 사이트 데이터 삭제 시 없어집니다.</li>
+      <li><strong>ZIP 임시 저장:</strong> 지원 브라우저의 OPFS에 임시본을 만들고 완료·취소 후 정리를 시도합니다. 창 강제 종료 등으로 남을 수 있으며 브라우저의 해당 사이트 데이터 삭제로 제거할 수 있습니다. 사이트 데이터 삭제 시 다른 기기 내 설정도 초기화될 수 있습니다.</li>
+    </ul>
+    <p>GA4는 <a href="https://tools.google.com/dlpage/gaoptout?hl=ko" target="_blank" rel="noopener noreferrer">Google Analytics 차단 도구</a> 또는 브라우저의 추적 방지·요청 차단 기능으로 제한할 수 있습니다. 쿠키 차단만으로 모든 통계 요청이 차단된다고 보장하지 않으며 이 도구는 Cloudflare 작업 로그를 차단하지 않습니다.</p>
+    <p>현재 앱에는 작업 로그만 끄는 기능이 없습니다. 전송을 원하지 않는 경우 <a href="https://github.com/lucky2449/selective-file-copier#로컬-실행과-개발" target="_blank" rel="noopener noreferrer">로컬 실행 안내</a>를 이용할 수 있습니다. 현재 로컬 설정에서는 앱의 GA4·작업 로그가 활성화되지 않습니다. 프로그램을 받는 과정에서 GitHub의 접속 정보 처리는 별개입니다.</p>
+    <p>거부·처리 정지 요청은 아래 문의처로도 받습니다. 설정 변경이나 쿠키 삭제가 이미 서버에 전송된 기록까지 자동 삭제하지는 않습니다.</p>
+  </section>
+
+  <section aria-labelledby="rights">
+    <h2 id="rights">5. 권리 행사와 문의</h2>
+    <p>처리되는 개인정보에 대해 열람, 정정·삭제, 처리 정지 또는 동의에 근거한 처리의 동의 철회를 요청할 수 있습니다. 법령상 제한이 있는 경우 해당 근거와 사유를 안내하고 요청은 관계 법령에 따라 확인·처리합니다.</p>
+    <p><strong>담당:</strong> 파일모아 운영자<br><strong>이메일:</strong> <a href="mailto:sjm2449@naver.com">sjm2449@naver.com</a></p>
+    <p>임시 ID만으로 특정 이용자의 기록을 찾기 어려울 수 있습니다. 우선 대략적인 작업 시각과 요청 내용을 보내주시면 기록 조회 가능 여부와 필요한 최소 정보를 협의합니다. <strong>사진 원본·파일 목록·신분증을 먼저 보내지 마세요.</strong></p>
+    <p>관련 상담·구제 절차는 <a href="https://privacy.kisa.or.kr/" target="_blank" rel="noopener noreferrer">개인정보침해 신고센터</a> 또는 <a href="https://www.kopico.go.kr/" target="_blank" rel="noopener noreferrer">개인정보 분쟁조정위원회</a>에서 확인할 수 있습니다.</p>
+  </section>
+
+  <section aria-labelledby="security">
+    <h2 id="security">6. 코드에 적용된 보호 조치와 기록의 한계</h2>
+    <ul>
+      <li>전송 항목을 제한하고 작업 로그 서버가 허용 JSON 형식·크기를 검사합니다. 원시 오류 메시지나 사진 정보를 받는 API는 제공하지 않습니다.</li>
+      <li>작업 로그를 HTTPS로 전송하며 요청 수 제한·중복 기록 방지·보관기간 정리 코드를 적용합니다. 공개 웹 API에 로그 조회 기능을 제공하지 않습니다.</li>
+      <li>서버 수신 로그의 해시·서명은 수신 내용의 변경 확인을 돕습니다. 브라우저가 보낸 내용의 사실성, 특정 이용자 또는 원본 무손상을 입증하지는 않습니다.</li>
+      <li>일반 다운로드·ZIP 기록은 브라우저에 다운로드를 요청한 내역이며 실제 디스크 저장 완료의 증명이 아닙니다.</li>
+    </ul>
+    <p>실제 계정 권한·공급자 설정·정리 상태는 코드와 별도의 운영 점검이 필요합니다. 사진 원본 보호와 개인정보 처리 절차는 서로 다른 사항입니다.</p>
+  </section>
+
+  <section aria-labelledby="changes">
+    <h2 id="changes">7. 변경 안내와 공식 자료</h2>
+    <p>처리 방식이 변경되면 이 페이지의 수정일과 내용을 갱신하여 안내합니다.</p>
+    <ul>
+      <li><a href="https://support.google.com/analytics/answer/7667196?hl=ko" target="_blank" rel="noopener noreferrer">GA4 데이터 보관</a> · <a href="https://support.google.com/analytics/answer/11397207?hl=ko" target="_blank" rel="noopener noreferrer">GA4 쿠키</a> · <a href="https://business.safety.google/adsprocessorterms/" target="_blank" rel="noopener noreferrer">Google 데이터 처리 약관</a></li>
+      <li><a href="https://developers.cloudflare.com/d1/configuration/data-location/" target="_blank" rel="noopener noreferrer">Cloudflare D1 데이터 위치</a> · <a href="https://www.cloudflare.com/cloudflare-customer-dpa/" target="_blank" rel="noopener noreferrer">Cloudflare 데이터 처리 계약</a></li>
+    </ul>
+  </section>
+  <p class="notice-bottom"><a href="./">파일모아로 돌아가기</a> · <a href="./licenses.html">오픈소스 라이선스</a></p>
+</main>
+</body>
 </html>
