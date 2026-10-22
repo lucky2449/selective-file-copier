@@ -44,11 +44,6 @@ const confirmSave = createSaveNotice(window, {
   operationLogsEnabled: () => operationLogger.enabled,
   retentionDays: operationLogConfig.retentionDays,
 });
-if (operationLogger.configured) {
-  $("operation-log-notice").hidden = false;
-  $("operation-log-retention").textContent =
-    `${operationLogConfig.retentionDays}일`;
-}
 function sizeMismatch(message) {
   return Object.assign(new Error(message), { code: "SIZE_MISMATCH" });
 }
@@ -59,7 +54,6 @@ function operationSize(files) {
   };
 }
 const analytics = createAnalytics({ measurementId, window, document });
-if (analytics.configured) $("analytics-notice").hidden = false;
 function applyPrivacyPreferences(value) {
   analytics.setConsent(value.analytics);
   if (value.analytics) analytics.start();

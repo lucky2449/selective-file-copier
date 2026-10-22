@@ -936,18 +936,6 @@ progress::-moz-progress-bar {
   font-weight: 600;
 }
 
-.privacy-notice {
-  margin-top: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.privacy-notice summary {
-  cursor: pointer;
-  padding: 5px 0;
-}
-.privacy-notice .hint {
-  margin: 6px 0 12px;
-}
 /* Previews occupy the existing file cell; table columns and scroll height stay fixed. */
 .result-file-cell { position: relative; padding-right: 46px; }
 .result-thumbnail {
