@@ -1,0 +1,22 @@
+MediaPipe Tasks Vision 1.1.1 and BlazeFace Short Range model (float16, version 1)
+Copyright Google LLC and MediaPipe contributors.
+Licensed under the Apache License, Version 2.0; see LICENSE.txt.
+
+The package JS/WASM files are unmodified copies from @mediapipe/tasks-vision@1.1.1.
+Source distribution: https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-1.1.1.tgz
+Source project: https://github.com/google-ai-edge/mediapipe
+Model URL and file SHA-256 values are recorded in manifest.json.
+The official model card, including its Apache-2.0 license statement and limitations,
+is included as model-card.pdf. This short-range detector can miss small, occluded,
+profile or blurred faces. No identity recognition is performed.
+
+Filemoa loads these assets from its own origin for local inference. It does not
+upload input images, face/eye coordinates or measurements through this module.
+The model authors do not endorse or guarantee Filemoa's quality judgements.
+
+Face Landmarker float16 version 1 bundle (FaceMesh V2):
+https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+Official FaceMesh V2 and Blendshape V2 model cards document Apache-2.0 licensing
+and are included as landmark-model-card.pdf and blendshape-model-card.pdf.
+Only eyelid contours are used. Expression scores and transformation matrices are
+disabled. Face identity recognition and landmark uploads are not performed.

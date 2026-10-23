@@ -1,0 +1,60 @@
+{
+  "package": "@mediapipe/tasks-vision",
+  "version": "1.1.1",
+  "packageIntegrity": "sha512-jwntgT5tzDrKOkqg6xNDNpRcTUnGvmylZE5DFnzPXossiWOIDdZX+C81LI75hlXhsG58YZW+lGzcmjH1qrQE/Q==",
+  "model": "BlazeFace short-range float16 version 1",
+  "modelSource": "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+  "license": "Apache-2.0",
+  "files": {
+    "face_detector.tflite": {
+      "bytes": 229746,
+      "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+    },
+    "LICENSE.txt": {
+      "bytes": 12331,
+      "sha256": "8707eef0533987efc5b155d64761eeb6e20793f50b9bd1a68dad1cf4719d0ed8"
+    },
+    "model-card.pdf": {
+      "bytes": 434425,
+      "sha256": "cd335c06fc0de7807cd815a0777a697932598bcdb28fa98adaaabf847485f758"
+    },
+    "NOTICE.txt": {
+      "bytes": 1474,
+      "sha256": "568eb35c40523be890f8c97a42dd73a08778fc8d5c4b355bdeb479f35ee94048"
+    },
+    "package.json": {
+      "bytes": 1192,
+      "sha256": "ed8a115ed6a703014465111bfe5f7321a94769dc19f6eb7936ece7ae6a8c8c1e"
+    },
+    "README.md": {
+      "bytes": 9259,
+      "sha256": "8326ed0beb1983b69cccb190937c2e368388969cb3ade06010fe51e0d5339308"
+    },
+    "vision_bundle.mjs": {
+      "bytes": 156139,
+      "sha256": "a84921e02321e582484c1f8126d344b5f33b791fa09c640a52e20ee8632068f1"
+    },
+    "wasm/vision_wasm_module_internal.js": {
+      "bytes": 334166,
+      "sha256": "539a4386fd12d0723d6e900ec80467d168ba7290dda2f79e77a2181b8e906115"
+    },
+    "wasm/vision_wasm_module_internal.wasm": {
+      "bytes": 13519940,
+      "sha256": "3b57e4b55ac6346bf940212e3e11250b308a6a474077385e2f527b119cf74525"
+    },
+    "face_landmarker.task": {
+      "bytes": 3758596,
+      "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff"
+    },
+    "landmark-model-card.pdf": {
+      "bytes": 3476420,
+      "sha256": "c6add060f4ebfb37b2690136b6c711c7e5fcb7038baa2649ae3338b83979565a"
+    },
+    "blendshape-model-card.pdf": {
+      "bytes": 2324099,
+      "sha256": "c8e9cf60a39998f4b341740623917590e050d1c97004e2de4568d84e026445ae"
+    }
+  },
+  "landmarkModel": "Face Landmarker float16 version 1 (FaceMesh V2)",
+  "landmarkModelSource": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+}

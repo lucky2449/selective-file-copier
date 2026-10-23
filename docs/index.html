@@ -27,8 +27,8 @@
     <meta name="twitter:image" content="https://lucky2449.github.io/selective-file-copier/social-card-v1.png" />
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
-    <link rel="stylesheet" href="./style.css?v=privacy-consent-1" />
-    <script type="module" src="./app.mjs?v=privacy-consent-1"></script>
+    <link rel="stylesheet" href="./style.css?v=review-state-1" />
+    <script type="module" src="./app.mjs?v=quality-motion-1"></script>
   </head>
   <body>
     <header>
@@ -36,6 +36,15 @@
       ><span class="local">● 내 기기에서 안전하게 처리</span>
     </header>
     <main>
+      <p id="local-file-notice" class="local-file-notice" role="alert" hidden>
+        HTML 파일을 직접 열면 폴더 선택 등 기능이 작동하지 않습니다.
+        로컬 서버를 실행한 뒤 <a href="http://127.0.0.1:8080/">로컬 사이트 열기</a>를 눌러 주세요.
+      </p>
+      <script>
+        if (location.protocol === "file:") {
+          document.getElementById("local-file-notice").hidden = false;
+        }
+      </script>
       <section class="intro">
         <p class="eyebrow">FILE COPIER / BROWSER EDITION</p>
         <h1>필요한 파일만, 한 번에 모으세요<span>.</span></h1>
@@ -116,6 +125,7 @@
         <section class="panel results">
           <div class="heading results-heading">
             <div class="results-title"><h2>검색 결과</h2><span id="result-label" class="pill">준비 중</span></div>
+            <button id="quality-review" type="button" class="quality-review-button" hidden title="원본 JPG 얼굴 영역의 흔들림·번짐을 실험적으로 검사합니다. 인물 초점 판정은 보류하며 파일 선택·원본은 변경하지 않습니다.">JPG 품질 검사 (실험)</button>
             <div id="result-filters" class="result-filter-control" hidden>
               <details id="result-filter-dropdown">
                 <summary id="result-filter-toggle">표시: <span id="result-filter-label">전체</span><span aria-hidden="true">⌄</span></summary>

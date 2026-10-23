@@ -1,3 +1,4 @@
+import { needsAttention } from "./photo-review.mjs?v=review-state-1";
 export const RESULT_FILTERS = [
   "all",
   "found",
@@ -10,7 +11,7 @@ export function matchesResultFilter(row, filter) {
     case "found":
       return Boolean(row.chosen);
     case "attention":
-      return !row.chosen && row.candidates.length > 0;
+      return needsAttention(row);
     case "missing":
       return !row.chosen && row.candidates.length === 0;
     case "selected":

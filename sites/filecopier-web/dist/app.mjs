@@ -1,3 +1,5 @@
+import { createPortraitReviewer } from "./portrait-review.mjs?v=quality-ui-1";
+import { reviewPhotos } from "./quality-review.mjs?v=quality-motion-1";
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=raw-compat-1";
 import { createOperationLogger } from "./operation-log.mjs?v=privacy-consent-1";
 import { createPrivacyPreferences } from "./privacy-preferences.mjs?v=privacy-consent-1";
@@ -6,7 +8,7 @@ import {
   APP_VERSION,
   createSaveNotice,
   createDiagnostics,
-} from "./save-policy.mjs?v=privacy-consent-1";
+} from "./save-policy.mjs?v=review-state-1";
 import { createAnalytics } from "./analytics.mjs?v=privacy-consent-1";
 import { measurementId } from "./analytics-config.mjs";
 import { withCopyLock } from "./copy-lock.mjs?v=copy-lock-1";
@@ -32,7 +34,11 @@ import {
   expandPhotoPairs,
 } from "./photo-pairs.mjs?v=selected-formats-1";
 import { prepareZipDownload } from "./zip-download.mjs?v=quota-cleanup-1";
-import { RESULT_FILTERS, matchesResultFilter, resultFilterCounts } from "./result-filter.mjs?v=result-filter-1";
+import { RESULT_FILTERS, matchesResultFilter, resultFilterCounts } from "./result-filter.mjs?v=review-state-1";
+import { createReviewStore, appendReviewBadge } from "./photo-review.mjs?v=quality-label-2";
+const reviews = createReviewStore();
+const qualityReviewer = createPortraitReviewer(window);
+let qualityAbort;
 const $ = (id) => document.getElementById(id);
 const diagnostics = createDiagnostics(window.navigator?.userAgent);
 const operationLogger = createOperationLogger({
@@ -117,11 +123,13 @@ function setBusy(value) {
   ])
     $(id).disabled = value;
   $("cancel").hidden = !value;
-  for (const input of $("rows").querySelectorAll("input,select"))
+  for (const input of $("rows").querySelectorAll("input,select,button"))
     input.disabled = value || input.dataset.unavailable === "true";
   updateSummary();
 }
 function invalidate() {
+  qualityAbort?.abort();
+  reviews.clear();
   state.rows = [];
   state.resultFilter = "all";
   render();
@@ -198,15 +206,12 @@ function updateSummary() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([format, count]) => `${format} ${count.toLocaleString("ko-KR")}개`)
       .join(" · ") || "선택한 파일 없음";
-  const missing = state.rows.filter(
-    (row) => !row.chosen && !row.candidates.length,
-  ).length;
-  const attention = state.rows.filter(
-    (row) => !row.chosen && row.candidates.length,
-  ).length;
+  const { missing, attention } = resultFilterCounts(state.rows);
   $("stat-attention").textContent = attention;
   $("summary-requests").textContent =
     `찾지 못함 ${missing.toLocaleString("ko-KR")}건 · 확인 필요 ${attention.toLocaleString("ko-KR")}건`;
+  $("quality-review").hidden = !state.rows.length;
+  $("quality-review").disabled = state.busy || !state.rows.some(row => row.chosen);
   $("copy").disabled = state.busy || !selected.length;
   $("zip").disabled = state.busy || !selected.length;
   $("zip").textContent =
@@ -301,6 +306,15 @@ function render() {
           ? "번호 확인"
           : "파일 선택"
         : "찾지 못함";
+    appendReviewBadge({
+      document, content, row, disabled: state.busy, isBusy: () => state.busy,
+      onAcknowledge: () => {
+        if (!reviews.acknowledge(row.chosen)) return;
+        render();
+        toast("사진 검토 확인 완료 · 저장 선택은 유지됩니다.");
+        $("result-filter-toggle").focus?.();
+      },
+    });
     statusCell.append(
       node(
         "span",
@@ -466,6 +480,7 @@ $("search").addEventListener("click", async () => {
   analytics.track("file_search");
   progress(0, "파일 검색 중...");
   try {
+    reviews.clear();
     await new Promise((resolve) => setTimeout(resolve, 0));
     state.pairs = buildFormatGroups(state.files, state.extensions);
     const index = buildIndex(state.files, [...state.extensions], {
@@ -475,7 +490,7 @@ $("search").addEventListener("click", async () => {
     for (let i = 0; i < items.length; i++) {
       if (state.cancelled) throw new DOMException("작업 취소", "AbortError");
       const row = matchItem(index, items[i]);
-      rows.push(resolvePhotoPair(row, state.pairs));
+      rows.push(reviews.bind(resolvePhotoPair(row, state.pairs)));
       if (i % 300 === 0) {
         progress((i / items.length) * 100, "파일 검색 중...");
         await new Promise((resolve) => setTimeout(resolve, 0));
@@ -905,14 +920,38 @@ async function copyFiles() {
     setBusy(false);
   }
 }
+$("quality-review").addEventListener("click", async () => {
+  if(state.busy) return;
+  const entries=state.rows.filter(row=>row.chosen).map(row=>row.chosen);
+  if(!entries.length) return;
+  qualityAbort=new AbortController();
+  state.cancelled=false;
+  setBusy(true);
+  progress(0,"JPG 품질 검사 중...");
+  try {
+    const totals=await reviewPhotos({entries,reviewer:qualityReviewer,store:reviews,signal:qualityAbort.signal,
+      onProgress(done,total) { progress(done/total*100,`JPG 품질 검사 ${done}/${total}`); }
+    });
+    log(`JPG 검사: 완료 ${totals.complete} · 판단 보류 ${totals.inconclusive} · 미지원 ${totals.unsupported} · 실패 ${totals.failed} · 취소 ${totals.cancelled}`);
+    toast(state.cancelled ? "검사를 취소했습니다. 파일 선택은 유지됩니다." : "JPG 검사 완료 · 판단 보류는 직접 확인해 주세요.");
+  } catch(error) { report(error); }
+  finally {
+    qualityAbort=null;
+    setBusy(false);
+    render();
+  }
+});
 $("copy").addEventListener("click", copyFiles);
 $("zip").addEventListener("click", () => exportZip());
 $("cancel").addEventListener("click", () => {
   state.cancelled = true;
   state.copyAbort?.abort();
+  qualityAbort?.abort();
   $("progress-label").textContent = "현재 처리를 정리하고 취소합니다...";
 });
 $("reset").addEventListener("click", () => {
+  if(state.busy) return;
+  qualityReviewer.dispose();
   previewFor = createPreviewResolver([]);
   Object.assign(state, {
     files: [],
@@ -944,3 +983,6 @@ $("diagnostics").addEventListener("click", () =>
   ),
 );
 createPrivacyPreferences({ window, document, onChange: applyPrivacyPreferences });
+
+window.addEventListener?.("pagehide", () => { qualityAbort?.abort(); qualityReviewer.dispose(); });
+

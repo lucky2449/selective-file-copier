@@ -86,6 +86,23 @@ test("public app restores a saved refusal without showing privacy dialog or load
   } finally { h.restore(); }
 });
 
+test("review foundation displays unanalysed badges without changing attention or downloads", async () => {
+  const h = await setup();
+  try {
+    await searchInput(h.el, [inputFile("source/a.JPG")], "a\nmissing");
+    const row = h.el("rows").children[0].children[0];
+    const badges = row.children[1].children.find(n => n.className === "review-badges");
+    assert.equal(badges.children[0].textContent, "미분석");
+    assert.equal(h.el("filter-count-attention").textContent, "0");
+    assert.equal(h.el("stat-attention").textContent, 0);
+    await h.el("filter-attention").fire("click");
+    assert.equal(h.el("result-filter-empty").hidden, false);
+    assert.match(h.el("result-filter-status").textContent, /필터 밖 선택 1건/);
+    await h.el("copy").fire("click");
+    assert.deepEqual(h.downloads.map(f => f.name), ["a.JPG"]);
+  } finally { h.restore(); }
+});
+
 test("result dropdown preserves hidden selections and downloads include all selected rows", async () => {
   const h = await setup();
   try {
@@ -1640,4 +1657,22 @@ test("visible format check buttons show uppercase labels and source counts witho
   } finally {
     h.restore();
   }
+});
+
+test("quality button runs readonly worker and updates attention without changing download selection", async()=>{
+ let calls=0;
+ class Worker {postMessage(){calls++;queueMicrotask(()=>this.onmessage({data:{result:{algorithmVersion:"native-face-eyes-v1",decision:{verdict:"motion_suspected",reasons:["motion"]}}}}));}terminate(){}}
+ const h=await setup({Worker,setTimeout:()=>1,clearTimeout:()=>{}});
+ try {
+   await searchInput(h.el,[inputFile("source/one.JPG")],"one");
+   assert.equal(h.el("quality-review").disabled,false);
+   const summary=h.el("summary-selection").textContent;
+   await h.el("quality-review").fire("click");
+   assert.equal(calls,1);assert.equal(h.el("stat-attention").textContent,1);
+   assert.equal(h.el("summary-selection").textContent,summary);
+   await h.el("filter-attention").fire("click");
+   assert.equal(h.el("rows").children[0].children.length,1);
+   await h.el("copy").fire("click");
+   assert.equal(await h.downloads[0].blob.text(),"photo");
+ } finally {h.restore();}
 });

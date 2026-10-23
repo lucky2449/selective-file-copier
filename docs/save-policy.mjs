@@ -1,4 +1,4 @@
-export const APP_VERSION = "2026.10.22-privacy-19";
+export const APP_VERSION = "2026.10.23-motion-23";
 export const NOTICE_VERSION = "3";
 export function createSaveNotice(
   env,
@@ -72,3 +72,4 @@ export function createDiagnostics(userAgent = "") {
     },
   };
 }
+
