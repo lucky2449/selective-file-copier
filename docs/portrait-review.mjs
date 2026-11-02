@@ -92,7 +92,7 @@ export function createPortraitReviewer(window) {
               );
               if (current !== cancel) return;
               cacheKey =
-                "native-face-eyes-v1:optimized-23:" +
+                "native-face-eyes-v1:bright-retry-25:" +
                 Array.from(new Uint8Array(digest), (b) =>
                   b.toString(16).padStart(2, "0"),
                 ).join("") +
@@ -111,7 +111,7 @@ export function createPortraitReviewer(window) {
             if (current !== cancel) return;
             worker ??= new window.Worker(
               new URL(
-                "./portrait-review-worker.mjs?v=portrait-optimized-23",
+                "./portrait-review-worker.mjs?v=portrait-bright-retry-25",
                 import.meta.url,
               ),
               { type: "module" },

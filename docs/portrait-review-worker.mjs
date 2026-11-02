@@ -278,7 +278,22 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
       );
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       stage = "landmark-detection";
-      const meshes = landmarker.detect(canvas).faceLandmarks;
+      let meshes = landmarker.detect(canvas).faceLandmarks;
+      if (meshes.length !== 1) {
+        // Retry only the temporary detection canvas. The source bitmap is never modified.
+        // A confirmed landmark geometry is still required below.
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, 512, 512);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.translate(256, 256);
+        ctx.rotate(-angle);
+        ctx.filter = "brightness(1.8)";
+        ctx.drawImage(bitmap, cx - side / 2, cy - side / 2, side, side, -256, -256, 512, 512);
+        ctx.filter = "none";
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        meshes = landmarker.detect(canvas).faceLandmarks;
+      }
       let refined = null;
       let faceVerified = false;
       stage = "landmark-mapping";

@@ -1,4 +1,4 @@
-import { createPortraitReviewer } from "./portrait-review.mjs?v=quality-optimized-4";
+import { createPortraitReviewer } from "./portrait-review.mjs?v=quality-bright-retry-6";
 import { reviewPhotos } from "./quality-review.mjs?v=quality-motion-1";
 import { createPreviewResolver, createPreviewManager } from "./thumbnail.mjs?v=raw-compat-1";
 import { createOperationLogger } from "./operation-log.mjs?v=privacy-consent-1";
