@@ -9,7 +9,7 @@ export function qualityStatus(result) {
     return { status: "complete", reasons: decision.reasons };
   if (decision?.verdict === "no_signal")
     return { status: "complete", reasons: [] };
-  return { status: "inconclusive", reasons: [] };
+  return { status: "inconclusive", reasons: [], issue: inconclusiveReason(result) };
 }
 export async function reviewPhotos({
   entries,
@@ -53,3 +53,13 @@ export async function reviewPhotos({
   }
   return totals;
 }
+export function inconclusiveReason(result) {
+  if (result?.imageFallback) return "image_regions";
+  const faces = Array.isArray(result?.faceMotion) ? result.faceMotion : [];
+  if (!faces.length) return "face_unavailable";
+  if (faces.length > 1 && faces.some(f => f?.assessment?.sharpDetail) && faces.some(f => !f?.assessment?.sharpDetail)) return "some_faces";
+  if (faces.some(f => f?.assessment?.issue === "insufficient_spatial_samples")) return "insufficient_samples";
+  if (faces.some(f => f?.assessment?.issue === "detail_not_confirmed")) return "detail_unconfirmed";
+  return "unknown";
+}
+

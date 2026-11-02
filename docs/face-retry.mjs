@@ -129,11 +129,7 @@ export function decideImageFallback(regions) {
   if (
     !corroborated &&
     regions.length === 5 &&
-    regions.every((r) => r?.decision?.verdict === "no_signal") &&
-    regions
-      .slice(1)
-      .filter((r) => r.assessment?.sufficient && r.assessment?.sharpDetail)
-      .length >= 2
+    regions.every((r) => ["no_signal", "inconclusive"].includes(r?.decision?.verdict))
   )
     return {
       verdict: "no_signal",
@@ -175,4 +171,18 @@ export function resolveReviewDecision(decision, faceMotion = []) {
       experimental: true,
     };
   return decision;
+}
+// Strong early result requires the full image and two disjoint quarters to agree.
+export function decideEarlyMotion(regions) {
+ if(!Array.isArray(regions)||regions.length!==5)return null;
+ const full=regions[0];
+ if(full?.verdict!=="motion_suspected"||!Number.isFinite(full.directionDegrees))return null;
+ const quarters=regions.slice(1).filter(d=>d?.verdict==="motion_suspected"&&d.directionDegrees===full.directionDegrees);
+ return quarters.length>=2?{verdict:"motion_suspected",reasons:["image_motion"],scope:"global_strong_motion",experimental:true}:null;
+}
+
+// Unverified candidates cannot establish a facial motion accusation or a clean photo.
+export function selectVerifiedFaceMotion(faces) {
+ if(!Array.isArray(faces))return {suspect:null,unverifiedSuspect:false};
+ return {suspect:faces.find(f=>f.faceVerified===true && f.decision?.verdict==="motion_suspected")?.decision ?? null,unverifiedSuspect:faces.some(f=>f.faceVerified!==true && f.decision?.verdict==="motion_suspected")};
 }

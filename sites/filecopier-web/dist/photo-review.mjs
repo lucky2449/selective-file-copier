@@ -123,6 +123,7 @@ export function createReviewStore() {
       record.value = Object.freeze({
         status: result.status,
         reasons: Object.freeze(reasons),
+        ...(result.status === "inconclusive" ? { issue: ["image_regions", "face_unavailable", "some_faces", "insufficient_samples", "detail_unconfirmed"].includes(result.issue) ? result.issue : "unknown" } : {}),
         acknowledged: false,
       });
       return true;
@@ -178,10 +179,15 @@ export function appendReviewBadge({
           : "이상 없음"
         : (labels[review.status] ?? "미분석");
     if (review.status === "complete" && !reasons.length)
-      label.title = "현재 검사 범위에서 의심 신호가 발견되지 않았습니다. 사진 전체의 품질을 보장하는 판정은 아닙니다.";
+      label.title = "의심 신호가 없거나 검사 근거가 부족할 수 있습니다. 사진 전체의 품질을 보장하는 판정은 아니므로 중요한 사진은 직접 확인해 주세요.";
     if (review.status === "inconclusive")
-      label.title =
-        "검사는 완료했지만 판정에 필요한 영역이나 세부 경계가 충분하지 않습니다. 사진을 확대해 직접 확인하세요.";
+      label.title = ({
+        image_regions: "사진 구역의 선명도 또는 흔들림 근거가 충분하지 않습니다.",
+        face_unavailable: "검사 가능한 얼굴을 찾지 못했습니다.",
+        some_faces: "여러 얼굴 후보 중 일부의 선명도 확인이 어렵습니다.",
+        insufficient_samples: "얼굴 영역이 작거나 분석할 픽셀이 부족합니다.",
+        detail_unconfirmed: "얼굴의 세부 정보가 부족해 선명도를 확인하지 못했습니다.",
+      }[review.issue] ?? "판정에 필요한 근거가 부족합니다.") + " 사진을 확대해 직접 확인하세요.";
     wrap.append(label);
   } else {
     const details = document.createElement("details");
@@ -209,4 +215,8 @@ export function appendReviewBadge({
   }
   content.append(wrap);
 }
+
+
+
+
 

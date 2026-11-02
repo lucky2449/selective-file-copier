@@ -113,3 +113,12 @@ test("face motion crops remain available when eye geometry is unreliable", () =>
     TypeError,
   );
 });
+
+test('face anchors are checked independently of eye contour refinement', async()=>{
+ const {verifyFaceLandmarks,planFaceMotionCrops}=await import('../dist/portrait-refinement.mjs');
+ const b={x:.2,y:.2,width:.5,height:.5};const pts=Array.from({length:468},()=>({x:.45,y:.45}));
+ pts[1]={x:.45,y:.45};pts[33]={x:.32,y:.38};pts[263]={x:.58,y:.38};pts[61]={x:.36,y:.55};pts[291]={x:.54,y:.55};pts[152]={x:.45,y:.64};
+ assert.equal(verifyFaceLandmarks({box:b},pts),true);
+ assert.equal(planFaceMotionCrops({width:1000,height:1000},[{box:b,score:.8,faceVerified:true,eyesRefined:false}])[0].faceVerified,true);
+ pts[33]={x:.99,y:.99};assert.equal(verifyFaceLandmarks({box:b},pts),false);assert.equal(verifyFaceLandmarks({box:b},[]),false);
+});

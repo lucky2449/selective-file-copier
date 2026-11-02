@@ -205,8 +205,22 @@ export function planFaceMotionCrops({ width, height }, detections) {
       )
     )
       continue;
-    crops.push({ rect, score: face.score });
+    crops.push({ rect, score: face.score, faceVerified: face.faceVerified === true });
     if (crops.length === 12) break;
   }
   return crops;
 }
+
+// Face presence and reliable eye-contour measurements are separate checks.
+export function verifyFaceLandmarks(detection, points) {
+ const b=detection?.box;
+ if(!b || ![b.x,b.y,b.width,b.height].every(Number.isFinite) || b.width<=0 || b.height<=0 || !Array.isArray(points) || points.length<468)return false;
+ const indexes=[1,33,263,61,291,152];
+ const anchors=indexes.map(i=>points[i]);
+ if(anchors.some(p=>!Number.isFinite(p?.x)||!Number.isFinite(p?.y)||p.x<b.x-b.width*.15||p.x>b.x+b.width*1.15||p.y<b.y-b.height*.15||p.y>b.y+b.height*1.15))return false;
+ const [nose,left,right,mouthLeft,mouthRight,chin]=anchors;
+ const eyeDistance=Math.hypot((left.x-right.x)/b.width,(left.y-right.y)/b.height);
+ const mouthDistance=Math.hypot((mouthLeft.x-mouthRight.x)/b.width,(mouthLeft.y-mouthRight.y)/b.height);
+ return eyeDistance>=.15 && eyeDistance<=1.05 && mouthDistance>=.08 && mouthDistance<=.9 && Math.hypot((nose.x-chin.x)/b.width,(nose.y-chin.y)/b.height)>=.08;
+}
+

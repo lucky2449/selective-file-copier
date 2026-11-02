@@ -1,4 +1,4 @@
-import { MAX_REVIEW_JPEG_BYTES } from "./portrait-analysis.mjs?v=portrait-spatial-detail-13";
+import { MAX_REVIEW_JPEG_BYTES } from "./portrait-analysis.mjs?v=portrait-face-eyes-20";
 export function createPortraitReviewer(window) {
   let current, worker;
   const cache = new Map();
@@ -92,7 +92,7 @@ export function createPortraitReviewer(window) {
               );
               if (current !== cancel) return;
               cacheKey =
-                "native-face-eyes-v1:face-spatial-detail-13:" +
+                "native-face-eyes-v1:optimized-23:" +
                 Array.from(new Uint8Array(digest), (b) =>
                   b.toString(16).padStart(2, "0"),
                 ).join("") +
@@ -111,7 +111,7 @@ export function createPortraitReviewer(window) {
             if (current !== cancel) return;
             worker ??= new window.Worker(
               new URL(
-                "./portrait-review-worker.mjs?v=portrait-spatial-detail-13",
+                "./portrait-review-worker.mjs?v=portrait-optimized-23",
                 import.meta.url,
               ),
               { type: "module" },
@@ -145,6 +145,12 @@ export function createPortraitReviewer(window) {
     },
   };
 }
+
+
+
+
+
+
 
 
 

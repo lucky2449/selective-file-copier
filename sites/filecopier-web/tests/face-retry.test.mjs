@@ -110,6 +110,25 @@ test("all image regions must finish before reporting no signal", () => {
       clean,
       { decision: { verdict: "inconclusive" } },
     ]).verdict,
-    "inconclusive",
+    "no_signal",
   );
+});
+
+test('early motion requires full photo and two distinct quarters with matching direction',async()=>{
+ const {decideEarlyMotion}=await import('../dist/face-retry.mjs');
+ const yes=d=>({verdict:'motion_suspected',directionDegrees:d});const no={verdict:'no_signal'};
+ assert.equal(decideEarlyMotion([yes(0),yes(0),no,no,no]),null);
+ assert.equal(decideEarlyMotion([no,yes(0),yes(0),no,no]),null);
+ assert.equal(decideEarlyMotion([yes(0),yes(0),yes(45),no,no]),null);
+ assert.deepEqual(decideEarlyMotion([yes(0),yes(0),yes(0),no,no]).reasons,['image_motion']);
+ assert.equal(decideEarlyMotion([]),null);
+});
+
+
+test('motion accusation requires verified face and unverified suspicion remains withheld',async()=>{
+ const {selectVerifiedFaceMotion}=await import('../dist/face-retry.mjs');
+ const suspect={verdict:'motion_suspected'};const good={verdict:'no_signal'};
+ assert.deepEqual(selectVerifiedFaceMotion([{faceVerified:true,decision:good},{faceVerified:false,decision:suspect}]),{suspect:null,unverifiedSuspect:true});
+ assert.equal(selectVerifiedFaceMotion([{faceVerified:true,decision:suspect}]).suspect,suspect);
+ assert.equal(selectVerifiedFaceMotion([{decision:suspect}]).unverifiedSuspect,true);
 });

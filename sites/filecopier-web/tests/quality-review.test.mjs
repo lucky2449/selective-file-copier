@@ -96,3 +96,12 @@ test("JPG batch supplies the pilot motion profile without changing input entries
   assert.ok(Object.isFrozen(received));
   assert.equal(received.maxLaplacian, 2);
 });
+
+test("withheld status preserves distinct safe diagnostic reasons", async () => {
+ const {inconclusiveReason}=await import('../dist/quality-review.mjs');
+ assert.equal(inconclusiveReason({imageFallback:{}}),'image_regions');
+ assert.equal(inconclusiveReason({faceMotion:[]}),'face_unavailable');
+ assert.equal(inconclusiveReason({faceMotion:[{assessment:{sharpDetail:true}},{assessment:{sharpDetail:false}}]}),'some_faces');
+ assert.equal(inconclusiveReason({faceMotion:[{assessment:{issue:'detail_not_confirmed'}}]}),'detail_unconfirmed');
+ const store=createReviewStore(),item=entry('x.jpg'),token=store.begin(item);store.finish(item,token,{status:'inconclusive',issue:'detail_unconfirmed'});assert.equal(store.read(item).issue,'detail_unconfirmed');
+});

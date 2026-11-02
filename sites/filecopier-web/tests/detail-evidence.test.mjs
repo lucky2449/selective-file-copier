@@ -65,7 +65,7 @@ test("missing, nonfinite and undersampled spatial measurements fail closed", () 
     assert.equal(assessDetailEvidence(e).sufficient, false);
   }
 });
-test("landscape/animal route needs two detailed samples and preserves motion precedence", () => {
+test("landscape/animal route completes when region checks find no motion", () => {
   const good = {
     decision: { verdict: "no_signal" },
     assessment: assessDetailEvidence(evidence()),
@@ -76,7 +76,7 @@ test("landscape/animal route needs two detailed samples and preserves motion pre
   };
   assert.equal(
     decideImageFallback([good, good, weak, weak, weak]).verdict,
-    "inconclusive",
+    "no_signal",
   );
   assert.equal(
     decideImageFallback([weak, good, good, weak, weak]).verdict,
@@ -91,3 +91,4 @@ test("detail assessment leaves measurement buffers and motion evidence unchanged
   assessDetailEvidence(e);
   assert.equal(JSON.stringify(e), before);
 });
+

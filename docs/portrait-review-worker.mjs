@@ -1,9 +1,12 @@
+import {selectSceneTiles,decideSceneDetail} from "./scene-detail.mjs?v=1";
 import { assessDetailEvidence } from "./detail-evidence.mjs?v=spatial-2";
 import {
   planFaceRetry,
   mapRetryDetection,
   planImageFallback,
   decideImageFallback,
+  decideEarlyMotion,
+  selectVerifiedFaceMotion,
   resolveReviewDecision,
 } from "./face-retry.mjs?v=retry-1";
 import {
@@ -12,9 +15,10 @@ import {
 } from "./face-motion.mjs?v=spatial-detail-3";
 import {
   refineEyeContours,
+  verifyFaceLandmarks,
   medianDenoise,
   planFaceMotionCrops,
-} from "./portrait-refinement.mjs?v=eye-noise-2";
+} from "./portrait-refinement.mjs?v=face-eyes-4";
 import {
   FilesetResolver,
   FaceDetector,
@@ -52,6 +56,21 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
     if (bitmap.width * bitmap.height !== dimensions.width * dimensions.height)
       throw Error();
     if (typeof OffscreenCanvas !== "function") throw Error();
+    stage = "early-motion";
+    const earlyWidth=bitmap.width,earlyHeight=bitmap.height;
+    const earlyCanvas=new OffscreenCanvas(1,1),earlyCtx=earlyCanvas.getContext("2d",{willReadFrequently:true});
+    if(!earlyCtx)throw Error();
+    const earlyRects=planImageFallback({width:earlyWidth,height:earlyHeight});
+    const earlyDecisions=[];
+    for(const rect of earlyRects){
+      const ratio=Math.min(1,768/Math.max(rect.width,rect.height));
+      earlyCanvas.width=Math.max(1,Math.floor(rect.width*ratio));earlyCanvas.height=Math.max(1,Math.floor(rect.height*ratio));
+      earlyCtx.drawImage(bitmap,rect.x,rect.y,rect.width,rect.height,0,0,earlyCanvas.width,earlyCanvas.height);
+      earlyDecisions.push(classifyMotionEvidence(analyzeBlurPixels(earlyCtx.getImageData(0,0,earlyCanvas.width,earlyCanvas.height)),{sensitivity:"strict"}));
+    }
+    earlyCanvas.width=1;earlyCanvas.height=1;
+    const earlyDecision=decideEarlyMotion(earlyDecisions);
+    if(earlyDecision){self.postMessage({result:{algorithmVersion:"native-face-eyes-v1",route:"early-global-motion",decision:earlyDecision,assessment:{completed:true,sufficient:true,scope:"global_strong_motion"},sourceDimensions:{width:earlyWidth,height:earlyHeight}}});return;}
     stage = "model";
     const base = new URL("./vendor/mediapipe-face-1.1.1/", import.meta.url);
     detector ??= await FaceDetector.createFromOptions(
@@ -261,6 +280,7 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
       stage = "landmark-detection";
       const meshes = landmarker.detect(canvas).faceLandmarks;
       let refined = null;
+      let faceVerified = false;
       stage = "landmark-mapping";
       if (meshes.length === 1) {
         const toOriginal = (p) => {
@@ -271,6 +291,7 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
             y: (cy + Math.sin(angle) * x + Math.cos(angle) * y) / height,
           };
         };
+        faceVerified = verifyFaceLandmarks(seed, meshes[0].map(toOriginal));
         const contours = [
           FaceLandmarker.FACE_LANDMARKS_LEFT_EYE,
           FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE,
@@ -281,7 +302,7 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
         );
         refined = refineEyeContours(seed, contours, { width, height });
       }
-      seeds[i] = refined ?? { ...seed, eyesRefined: false };
+      seeds[i] = { ...(refined ?? { ...seed, eyesRefined: false }), faceVerified };
     }
     const plan = planPortraitRegions({ width, height }, [
       ...seeds,
@@ -362,10 +383,9 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
         assessment: assessDetailEvidence(evidence),
       });
     }
-    const motionSuspect = result.faceMotion.find(
-      (f) => f.decision.verdict === "motion_suspected",
-    );
-    if (motionSuspect) result.decision = motionSuspect.decision;
+    const faceDecision=selectVerifiedFaceMotion(result.faceMotion);
+    if(faceDecision.suspect) result.decision=faceDecision.suspect;
+    else if(faceDecision.unverifiedSuspect) result.decision={verdict:"inconclusive",reasons:[],issue:"unverified_face_candidate",experimental:true};
     result.retry = {
       attempts: retryAttempts,
       recovered: retryAttempts > 0 && result.faceMotion.length > 0,
@@ -376,6 +396,7 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
         scope: "image_regions_not_confirmed_person",
         regions: [],
       };
+      let sceneOverview;
       for (const rect of planImageFallback({ width, height })) {
         const scale = Math.min(1, 768 / Math.max(rect.width, rect.height));
         canvas.width = Math.max(1, Math.floor(rect.width * scale));
@@ -391,11 +412,9 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
           canvas.width,
           canvas.height,
         );
-        const decision = classifyMotionEvidence(
-          analyzeBlurPixels(
-            ctx.getImageData(0, 0, canvas.width, canvas.height),
-          ),
-        );
+        const overview=analyzeBlurPixels(ctx.getImageData(0,0,canvas.width,canvas.height));
+        if(!sceneOverview)sceneOverview=overview;
+        const decision=classifyMotionEvidence(overview);
         // Native center sample avoids declaring fine detail from a resized overview.
         const native = {
           x: rect.x + Math.max(0, Math.floor((rect.width - 768) / 2)),
@@ -430,6 +449,18 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
         });
       }
       result.decision = decideImageFallback(result.imageFallback.regions);
+      if(result.decision.verdict==="inconclusive" && sceneOverview?.status==="measured") {
+        result.imageFallback.samples=[];
+        for(const tile of selectSceneTiles(sceneOverview,width,height)) {
+          canvas.width=tile.width;canvas.height=tile.height;
+          ctx.drawImage(bitmap,tile.x,tile.y,tile.width,tile.height,0,0,tile.width,tile.height);
+          const pixels=ctx.getImageData(0,0,tile.width,tile.height);
+          const assessment=assessDetailEvidence(measureFaceMotion(medianDenoise(pixels).image));
+          const decision=classifyMotionEvidence(analyzeBlurPixels(pixels));
+          result.imageFallback.samples.push({index:tile.index,assessment,decision});
+        }
+        result.decision=decideSceneDetail(result.decision,result.imageFallback.regions[0]?.decision,result.imageFallback.samples);
+      }
     }
     result.decision = resolveReviewDecision(result.decision, result.faceMotion);
     result.assessment = {
@@ -453,4 +484,9 @@ self.onmessage = async ({ data: { file, profile, motionProfile } }) => {
     }
   }
 };
+
+
+
+
+
 
