@@ -970,3 +970,30 @@ button.result-thumbnail { cursor: zoom-in; }
 .quality-review-button { margin-left:auto; padding:7px 10px; border:1px solid var(--line, #38414a); border-radius:7px; background:transparent; color:inherit; font-size:12px; }
 .quality-review-button:disabled { opacity:.5; }
 .results-heading { flex-wrap:wrap; gap:8px; }
+
+.quality-filter-control select { background: #191d23; color: #d4d9e0; border: 1px solid #414954; border-radius: 8px; padding: 9px 12px; font: inherit; cursor: pointer; }
+.quality-filter-control select:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Keep both result filters together, including when the heading wraps. */
+.result-filter-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.result-filter-group .result-filter-control { margin-left: 0; }
+.results-heading .quality-review-button { margin-left: auto; white-space: nowrap; }
+.results-heading .result-filter-control summary,
+.results-heading .quality-filter-control select { min-height: 34px; padding: 6px 9px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 520px) {
+  .results-heading { gap: 6px; }
+  .results-heading .quality-review-button { margin-left: 0; }
+}
+
+/* Separate controls with one shared outline and a dividing line. */
+.result-filter-group { gap: 0; }
+.results-heading .result-filter-control summary {
+  border-color: #414954; border-radius: 7px 0 0 7px; background: #191d23;
+}
+.results-heading .quality-filter-control select {
+  border-radius: 0 7px 7px 0; border-left: 0; color: #c5ced9;
+}
+.results-heading .result-filter-control summary:focus-visible,
+.results-heading .quality-filter-control select:focus-visible {
+  outline: 2px solid #93a6be; outline-offset: 2px; position: relative; z-index: 1;
+}

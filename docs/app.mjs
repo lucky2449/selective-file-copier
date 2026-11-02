@@ -75,6 +75,7 @@ const state = {
   files: [],
   rows: [],
   resultFilter: "all",
+  qualityFilter: "all",
   pairs: new Map(),
   extensions: new Set(),
   source: null,
@@ -132,6 +133,7 @@ function invalidate() {
   reviews.clear();
   state.rows = [];
   state.resultFilter = "all";
+  state.qualityFilter = "all";
   render();
   $("input-count").textContent =
     `${parseItems($("items").value).length}개 항목`;
@@ -150,13 +152,26 @@ function outputFiles() {
   const files = selectedFiles(state.rows);
   return expandPhotoPairs(files, state.pairs);
 }
+function matchesQualityFilter(row, filter) {
+  if (filter === "all") return true;
+  if (!row.chosen) return false;
+  const review = row.review;
+  if (filter === "unanalysed") return !review || review.status === "unanalysed";
+  if (filter === "motion") return review?.status === "complete" && review.reasons.some(reason => reason === "motion" || reason === "image_motion");
+  if (filter === "clear") return review?.status === "complete" && review.reasons.length === 0;
+  if (filter === "inconclusive") return review?.status === "inconclusive";
+  return ["failed", "unsupported", "cancelled", "analysing"].includes(review?.status);
+}
 function visibleRows() {
-  return state.rows.filter(row => matchesResultFilter(row, state.resultFilter));
+  return state.rows.filter(row => matchesResultFilter(row, state.resultFilter) && matchesQualityFilter(row, state.qualityFilter));
 }
 function updateResultFilters() {
   const counts = resultFilterCounts(state.rows);
   const shown = visibleRows();
   $("result-filters").hidden = !state.rows.length;
+  $("quality-filter-control").hidden = !state.rows.length;
+  $("quality-filter").value = state.qualityFilter;
+  $("quality-filter").disabled = state.busy;
   $("result-filter-status").hidden = !state.rows.length;
   const labels = { all: "전체", found: "찾음", attention: "확인 필요", missing: "찾지 못함", selected: "선택한 항목" };
   $("result-filter-label").textContent = labels[state.resultFilter];
@@ -169,7 +184,7 @@ function updateResultFilters() {
     $("filter-" + key).setAttribute("aria-pressed", String(state.resultFilter === key));
     $("filter-" + key).disabled = state.busy;
   }
-  const hiddenSelected = state.rows.filter(row => row.chosen && row.selected && !matchesResultFilter(row, state.resultFilter)).length;
+  const hiddenSelected = state.rows.filter(row => row.chosen && row.selected && (!matchesResultFilter(row, state.resultFilter) || !matchesQualityFilter(row, state.qualityFilter))).length;
   $("result-filter-status").textContent =
     `요청 ${state.rows.length}건 중 ${shown.length}건 표시 · ${hiddenSelected ? `필터 밖 선택 ${hiddenSelected}건도 저장에 포함` : "필터는 표시만 변경합니다"}`;
   $("result-filter-empty").hidden = !state.rows.length || shown.length > 0;
@@ -498,6 +513,7 @@ $("search").addEventListener("click", async () => {
     }
     state.rows = rows;
     state.resultFilter = "all";
+  state.qualityFilter = "all";
     render();
     const missing = rows.filter((row) => !row.candidates.length).length,
       ambiguous = rows.filter(
@@ -536,6 +552,13 @@ for (const key of RESULT_FILTERS) {
     render();
   });
 }
+$("quality-filter").addEventListener("change", event => {
+  if (state.busy) return;
+  state.qualityFilter = event.target.value;
+  const scroll = document.querySelector?.(".result-scroll");
+  if (scroll) scroll.scrollTop = 0;
+  render();
+});
 $("result-filter-toggle").addEventListener("click", event => {
   if (state.busy) event.preventDefault();
 });

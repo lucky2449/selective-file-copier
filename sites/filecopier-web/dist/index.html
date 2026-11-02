@@ -27,8 +27,8 @@
     <meta name="twitter:image" content="https://lucky2449.github.io/selective-file-copier/social-card-v1.png" />
     <meta name="twitter:image:alt" content="파일모아 — 필요한 파일만, 한 번에 모으세요. 숫자·파일명으로 검색하고 간편하게 저장." />
     <title>파일모아 — 필요한 파일만, 간편하게</title>
-    <link rel="stylesheet" href="./style.css?v=review-state-1" />
-    <script type="module" src="./app.mjs?v=quality-bright-retry-6"></script>
+    <link rel="stylesheet" href="./style.css?v=filter-group-9" />
+    <script type="module" src="./app.mjs?v=quality-filter-7"></script>
   </head>
   <body>
     <header>
@@ -126,6 +126,7 @@
           <div class="heading results-heading">
             <div class="results-title"><h2>검색 결과</h2><span id="result-label" class="pill">준비 중</span></div>
             <button id="quality-review" type="button" class="quality-review-button" hidden title="원본 JPG 얼굴 영역의 흔들림·번짐을 실험적으로 검사합니다. 인물 초점 판정은 보류하며 파일 선택·원본은 변경하지 않습니다.">JPG 품질 검사 (실험)</button>
+            <div class="result-filter-group">
             <div id="result-filters" class="result-filter-control" hidden>
               <details id="result-filter-dropdown">
                 <summary id="result-filter-toggle">표시: <span id="result-filter-label">전체</span><span aria-hidden="true">⌄</span></summary>
@@ -137,6 +138,18 @@
                   <button id="filter-selected" type="button" aria-pressed="false">선택한 항목 <span id="filter-count-selected">0</span></button>
                 </div>
               </details>
+            </div>
+            <label id="quality-filter-control" class="quality-filter-control" hidden>
+              <span class="sr-only">JPG 품질 표시 필터</span>
+              <select id="quality-filter" aria-label="JPG 품질 표시 필터">
+                <option value="all">품질: 전체</option>
+                <option value="motion">흔들림 의심</option>
+                <option value="inconclusive">판단 보류</option>
+                <option value="clear">이상 없음</option>
+                <option value="unanalysed">검사 전</option>
+                <option value="other">검사 실패·미지원 등</option>
+              </select>
+            </label>
             </div>
           </div>
           <div class="stats">
